@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ongaku — Musique</title>
+    <script>
+      // Node.js (manifest --enable-nodejs) : exposé via window.cep_node en contexte séparé
+      if (typeof require === 'function') window.__ongakuRequire = require;
+      if (typeof require === 'function' && !window.cep_node) {
+        window.cep_node = {
+          require: require,
+          process: typeof process !== 'undefined' ? process : undefined,
+          Buffer: typeof Buffer !== 'undefined' ? Buffer : undefined
+        };
+      }
+    </script>
+    <script src="./CSInterface.js?v=1.7.1"></script>
+    <link href="./vendor/fonts/urbanist.css" rel="stylesheet" />
+    <link href="./css/ongaku.css?v=1.7.1" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <div class="brand-row">
+          <div class="brand">
+            <div class="logo">
+              <!-- Ongaku (音楽) : kanji 楽 bleu nuit sur fond crème -->
+              <span class="logo-glyph" role="img" aria-label="楽"></span>
+            </div>
+            <span class="brand-name">Ongaku</span>
+            <span class="brand-label" id="brandLabel"></span>
+          </div>
+          <!-- onglets sur la même ligne que la marque : en-tête sur une seule rangée -->
+          <nav class="tabs" id="tabs"></nav>
+          <button class="icon-btn" id="btnSettings" title="Réglages"></button>
+        </div>
+      </header>
+
+      <main>
+        <section class="card" id="player"></section>
+        <section id="view"></section>
+      </main>
+      <!-- Barre d'état (comme Cypher) : connexion, libellé, projet ouvert -->
+      <footer id="status"></footer>
+      <div id="about"></div>
+    </div>
+
+    <div id="settings"></div>
+    <div id="toast"></div>
+
+    <script src="./js/suite-theme.js?v=1.7.1"></script>
+    <script src="./js/library.js?v=1.7.1"></script>
+    <script src="./js/analysis.js?v=1.7.1"></script>
+    <script src="./js/effects.js?v=1.7.1"></script>
+    <script src="./js/app.js?v=1.7.1"></script>
+  </body>
+</html>

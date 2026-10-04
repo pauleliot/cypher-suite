@@ -1,0 +1,32 @@
+KIRU {VERSION} — autocut (coupe des silences) pour Premiere Pro
+Par Paul-Eliot · Libre et Open Source
+
+Compatibilité : Premiere Pro 2022 ou plus récent (Windows et macOS).
+
+INSTALLATION
+  1. Fermez Premiere Pro.
+  2. Windows : double-cliquez sur « Installer Kiru.bat ».
+     macOS   : double-cliquez sur « Installer Kiru.command ».
+               La première fois, macOS peut refuser un script non signé : faites
+               clic droit > Ouvrir, puis confirmez « Ouvrir ».
+  3. Ouvrez Premiere Pro puis : Fenêtre > Extensions > Kiru — Autocut.
+
+Aucun droit administrateur n'est nécessaire. L'installeur :
+  - autorise les extensions non signées dans Premiere Pro (réglage « PlayerDebugMode ») ;
+  - copie le panneau dans le dossier des extensions de votre compte :
+      Windows : %APPDATA%\Adobe\CEP\extensions\com.kiru.panel
+      macOS   : ~/Library/Application Support/Adobe/CEP/extensions/com.kiru.panel
+
+MISE À JOUR
+  Relancez simplement l'installeur d'une version plus récente (Premiere fermé).
+  Vos réglages et vos profils de détection sont conservés.
+
+DÉSINSTALLATION
+  Supprimez le dossier com.kiru.panel indiqué ci-dessus.
+
+PREMIERS PAS
+  - Ouvrez la séquence à monter, choisissez la ou les pistes audio de la voix (A1…), puis « Analyser ».
+  - Réglez le seuil et les marges (ou choisissez un profil : Podcast, Vlog, Short…), puis « Couper » (Ctrl+Entrée).
+  - Par défaut, Kiru travaille sur une copie de la séquence : l'original reste intact.
+  - Recommandé : ffmpeg installé (formats MOV, MXF… et longues vidéos).
+  - Apparence partagée avec Cypher, Ongaku et Sori : un thème réglé dans l'un s'applique à tous.

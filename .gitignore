@@ -1,0 +1,22 @@
+# Dépôt « cypher-suite » : seul ce qui est listé ici est suivi.
+# Le dossier contient aussi des extensions d'autres éditeurs (AutoCut, Motion Bro…) : elles restent hors du dépôt.
+/*
+!/.gitignore
+!/README.md
+!/release.py
+!/com.cutflow.studio.panel/
+!/Ongaku/
+!/Sori/
+!/Kiru/
+
+# Dans chaque panneau : paquets fabriqués (publiés en Releases), réglages locaux, outils de test
+dist/
+.debug
+.claude/
+__pycache__/
+*.pyc
+
+# Kiru : fichiers produits par After Effects en fabriquant le modèle de sous-titres
+/Kiru/tools/*.aep
+/Kiru/tools/*.png
+/Kiru/tools/*.log

@@ -1,0 +1,30 @@
+SORI {VERSION} — éditeur de courbes d'animation pour Premiere Pro
+Par Paul-Eliot · Libre et Open Source
+
+Compatibilité : Premiere Pro 2022 ou plus récent (Windows et macOS).
+
+INSTALLATION
+  1. Fermez Premiere Pro.
+  2. Windows : double-cliquez sur « Installer Sori.bat ».
+     macOS   : double-cliquez sur « Installer Sori.command ».
+               La première fois, macOS peut refuser un script non signé : faites
+               clic droit > Ouvrir, puis confirmez « Ouvrir ».
+  3. Ouvrez Premiere Pro puis : Fenêtre > Extensions > Sori — Courbes.
+
+Aucun droit administrateur n'est nécessaire. L'installeur :
+  - autorise les extensions non signées dans Premiere Pro (réglage « PlayerDebugMode ») ;
+  - copie le panneau dans le dossier des extensions de votre compte :
+      Windows : %APPDATA%\Adobe\CEP\extensions\com.sori.panel
+      macOS   : ~/Library/Application Support/Adobe/CEP/extensions/com.sori.panel
+
+MISE À JOUR
+  Relancez simplement l'installeur d'une version plus récente (Premiere fermé).
+  Vos réglages et vos presets de courbes sont conservés.
+
+DÉSINSTALLATION
+  Supprimez le dossier com.sori.panel indiqué ci-dessus.
+
+PREMIERS PAS
+  - Dans la timeline, posez 2 images clés (départ, arrivée) sur Position, Échelle, Rotation ou Opacité.
+  - Sélectionnez le ou les clips, choisissez une courbe dans Sori, puis « Appliquer » (Ctrl+Entrée).
+  - Apparence partagée avec Cypher et Ongaku : un thème réglé dans l'un s'applique aux trois.

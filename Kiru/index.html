@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kiru — Autocut</title>
+    <script>
+      // Node.js (manifest --enable-nodejs) : exposé via window.cep_node en contexte séparé
+      if (typeof require === 'function') window.__kiruRequire = require;
+      if (typeof require === 'function' && !window.cep_node) {
+        window.cep_node = {
+          require: require,
+          process: typeof process !== 'undefined' ? process : undefined,
+          Buffer: typeof Buffer !== 'undefined' ? Buffer : undefined
+        };
+      }
+    </script>
+    <script src="./CSInterface.js?v=1.2.0"></script>
+    <link href="./vendor/fonts/urbanist.css" rel="stylesheet" />
+    <link href="./css/kiru.css?v=1.2.0" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <div class="brand-row">
+          <div class="brand">
+            <div class="logo">
+              <!-- Kiru (切る : couper) : kanji 切 couleur du fond sur pastille crème -->
+              <span class="logo-glyph" role="img" aria-label="切"></span>
+            </div>
+            <span class="brand-name">Kiru</span>
+            <span class="brand-label" id="brandLabel"></span>
+          </div>
+          <nav class="tabs" id="tabs"></nav>
+          <button class="icon-btn" id="btnSettings" title="Réglages"></button>
+        </div>
+      </header>
+
+      <main>
+        <section id="view"></section>
+      </main>
+      <!-- Barre d'état (comme Cypher, Ongaku et Sori) : connexion, libellé, projet ouvert -->
+      <footer id="status"></footer>
+      <div id="about"></div>
+    </div>
+
+    <div id="settings"></div>
+    <div id="toast"></div>
+
+    <script src="./js/suite-theme.js?v=1.2.0"></script>
+    <script src="./js/detect.js?v=1.2.0"></script>
+    <script src="./js/transcribe.js?v=1.2.0"></script>
+    <script src="./js/retakes.js?v=1.2.0"></script>
+    <script src="./js/captions.js?v=1.2.0"></script>
+    <script src="./js/subtitles.js?v=1.2.0"></script>
+    <script src="./js/llm.js?v=1.2.0"></script>
+    <script src="./js/ai.js?v=1.2.0"></script>
+    <script src="./js/tab-text.js?v=1.2.0"></script>
+    <script src="./js/tab-captions.js?v=1.2.0"></script>
+    <script src="./js/app.js?v=1.2.0"></script>
+  </body>
+</html>

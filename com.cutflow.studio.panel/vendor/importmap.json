@@ -1,0 +1,8 @@
+{
+  "react": "./vendor/esm/react@19.0.0/index.mjs",
+  "react/jsx-runtime": "./vendor/esm/react@19.0.0/jsx-runtime/index.mjs",
+  "react-dom": "./vendor/esm/react-dom@19.0.0/index.mjs",
+  "react-dom/client": "./vendor/esm/react-dom@19.0.0/client/index.mjs",
+  "lucide-react": "./vendor/esm/lucide-react@0.446.0/index.mjs",
+  "canvas-confetti": "./vendor/esm/canvas-confetti@1.9.3/index.mjs"
+}

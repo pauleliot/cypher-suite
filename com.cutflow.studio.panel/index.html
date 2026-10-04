@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cypher — Studio</title>
+
+    <script>
+      // Node.js (manifest --enable-nodejs) : on range require/process/Buffer dans window.cep_node
+      // pour l'outil vidéo, puis on masque require/module/exports afin que Tailwind et les autres
+      // scripts ne se prennent pas pour des modules CommonJS.
+      if (typeof require === 'function') window.__cypherRequire = require;
+      if (typeof require === 'function' && !window.cep_node) {
+        window.cep_node = {
+          require: require,
+          process: typeof process !== 'undefined' ? process : undefined,
+          Buffer: typeof Buffer !== 'undefined' ? Buffer : undefined
+        };
+      }
+      try { window.module = undefined; window.exports = undefined; window.require = undefined; } catch (e) {}
+
+      // Avec Node.js, CEP remplace setTimeout/setInterval par ceux de Node : chaque minuteur actif
+      // (nom du projet, synchro Vimeo, scans auto…) garde la boucle Node en vie et CEP attend ~5 s
+      // à la fermeture du panneau avant de l'arrêter. « unref » : les minuteurs se déclenchent
+      // normalement, mais Node ne les attend plus.
+      (function () {
+        function unrefWrap(original) {
+          return function () {
+            var timer = original.apply(this, arguments);
+            if (timer && typeof timer.unref === 'function') timer.unref();
+            return timer;
+          };
+        }
+        if (typeof window.setTimeout === 'function' && String(window.setTimeout).indexOf('[native code]') === -1) {
+          window.setTimeout = unrefWrap(window.setTimeout);
+          window.setInterval = unrefWrap(window.setInterval);
+        }
+      })();
+    </script>
+
+    <!-- CSInterface : passerelle officielle Adobe CEP <-> Premiere Pro -->
+    <script src="./CSInterface.js"></script>
+
+    <!-- Apparence partagée avec Ongaku et Sori (thème, nom affiché, presets) -->
+    <script src="./vendor/suite-theme.js"></script>
+
+    <!-- Tout est embarqué dans vendor/ : le panneau fonctionne sans connexion internet -->
+
+    <!-- Typographie du thème (Urbanist) -->
+    <link href="./vendor/fonts/urbanist.css" rel="stylesheet" />
+
+    <!-- Styles Tailwind 3.4.17 précompilés (plus de moteur dans le navigateur : chargement sans flash
+         et interface plus fluide). Palette pilotée par les variables CSS ci-dessous, recalculées par
+         l'app depuis les réglages Apparence. Régénérer après tout ajout de classe dans app.source.tsx. -->
+    <link href="./vendor/cypher.css" rel="stylesheet" />
+
+    <!-- Polyfill des import maps : le Chromium de CEP 11 (Premiere 2024) ne les supporte pas nativement -->
+    <script async src="./vendor/es-module-shims.js"></script>
+
+    <!-- Résolution des dépendances npm de l'app (React, icônes, confettis), copiées dans vendor/esm -->
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "./vendor/esm/react@19.0.0/index.mjs",
+          "react/jsx-runtime": "./vendor/esm/react@19.0.0/jsx-runtime/index.mjs",
+          "react-dom": "./vendor/esm/react-dom@19.0.0/index.mjs",
+          "react-dom/client": "./vendor/esm/react-dom@19.0.0/client/index.mjs",
+          "lucide-react": "./vendor/esm/lucide-react@0.446.0/index.mjs",
+          "canvas-confetti": "./vendor/esm/canvas-confetti@1.9.3/index.mjs"
+        }
+      }
+    </script>
+
+    <style>
+      /* Preset « Défaut » (canaux RGB), remplacé à l'exécution par les réglages Apparence */
+      :root {
+        --ink: 12 19 34;
+        --zinc-50: 247 245 239; --zinc-100: 239 236 228; --zinc-200: 221 224 232; --zinc-300: 185 191 205;
+        --zinc-400: 142 151 171; --zinc-500: 103 112 135; --zinc-600: 72 82 106; --zinc-700: 50 60 85;
+        --zinc-800: 34 44 68; --zinc-900: 23 32 54; --zinc-950: 15 23 41;
+        --accent-50: 240 244 255; --accent-100: 225 233 255; --accent-200: 199 213 255; --accent-300: 169 191 255;
+        --accent-400: 142 168 247; --accent-500: 114 144 234; --accent-600: 88 116 212; --accent-700: 71 96 181;
+        --accent-800: 58 78 144; --accent-900: 47 63 112; --accent-950: 27 37 68;
+        --cream-100: 255 246 220; --cream-200: 253 239 196; --cream-300: 251 230 166; --cream-400: 246 217 133;
+        --cream-500: 234 200 106;
+      }
+      html, body, #root {
+        width: 100%;
+        min-height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
+        background-color: rgb(var(--ink));
+        color: rgb(var(--zinc-50));
+        font-family: Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        user-select: none;
+      }
+      /* place de la barre de défilement toujours réservée : la barre d'onglets centrée ne bouge plus
+         quand on passe d'un onglet court (Audio) à un onglet qui défile (Vidéo) */
+      html { scrollbar-gutter: stable; }
+      textarea, input { user-select: text; }
+      ::-webkit-scrollbar { width: 6px; height: 6px; }
+      ::-webkit-scrollbar-track { background: rgb(var(--zinc-950)); }
+      ::-webkit-scrollbar-thumb { background: rgb(var(--zinc-700)); border-radius: 3px; }
+      ::-webkit-scrollbar-thumb:hover { background: rgb(var(--zinc-600)); }
+      /* barres d'onglets : défilement horizontal sans barre visible (elle rognait le bas des libellés) */
+      .scrollbar-none { scrollbar-width: none; }
+      .scrollbar-none::-webkit-scrollbar { display: none; }
+
+      /* Message affiché si l'application ne démarre pas (fichiers manquants) */
+      #cf-offline-fallback {
+        display: none;
+        padding: 24px;
+        font-size: 13px;
+        line-height: 1.6;
+        color: #f7f5ef;
+      }
+      #cf-offline-fallback code {
+        background: #222c44;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 12px;
+      }
+      /* cases à cocher : fond de l'app, fin contour, coche couleur d'accent */
+      input[type='checkbox'] {
+        -webkit-appearance: none;
+        appearance: none;
+        position: relative;
+        flex-shrink: 0;
+        margin: 0;
+        background-color: rgb(var(--ink));
+        border: 1px solid rgb(var(--zinc-600));
+        border-radius: 4px;
+        cursor: pointer;
+        transition: border-color 0.15s;
+      }
+      input[type='checkbox']:hover { border-color: rgb(var(--zinc-400)); }
+      input[type='checkbox']:checked { border-color: rgb(var(--accent-400)); }
+      input[type='checkbox']:checked::after {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 45%;
+        width: 30%;
+        height: 55%;
+        border: solid rgb(var(--accent-300));
+        border-width: 0 2px 2px 0;
+        transform: translate(-50%, -50%) rotate(45deg);
+      }
+      input[type='checkbox']:disabled { opacity: 0.4; cursor: default; }
+      input[type='checkbox']:focus-visible { outline: 1px solid rgb(var(--accent-300)); outline-offset: 1px; }
+
+      /* champs numériques sans flèches +/- */
+      input[type='number']::-webkit-inner-spin-button,
+      input[type='number']::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div id="cf-offline-fallback">
+        <strong>⚠️ Cypher n'a pas pu démarrer.</strong><br /><br />
+        Des fichiers du panneau semblent manquer (dossier vendor/ ou app.js).
+        Relancez l'installeur de Cypher, puis rouvrez le panneau via
+        <code>Fenêtre &gt; Extensions &gt; Cypher — Studio</code>.
+      </div>
+    </div>
+
+    <script>
+      // Pas de menu du navigateur au clic droit (Retour, Avancer, Imprimer, code source…) ;
+      // il reste dans les champs de saisie pour couper / copier / coller.
+      document.addEventListener('contextmenu', function (e) {
+        var t = e.target;
+        var editable = t && (t.isContentEditable || (t.tagName === 'TEXTAREA') || (t.tagName === 'INPUT' && /^(text|search|number|url|email|password)?$/i.test(t.type || '')));
+        if (!editable) e.preventDefault();
+      });
+
+      // Si le module principal n'a pas démonté le message de secours après 8s
+      // (par ex. fichier manquant), on l'affiche pour ne pas laisser un panneau vide.
+      window.__cfBootTimeout = setTimeout(function () {
+        var el = document.getElementById('cf-offline-fallback');
+        if (el) el.style.display = 'block';
+      }, 8000);
+    </script>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

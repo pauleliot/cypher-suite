@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ExtensionManifest Version="11.0" ExtensionBundleId="com.kiru.panel" ExtensionBundleVersion="1.2.0" ExtensionBundleName="Kiru" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <ExtensionList>
+    <Extension Id="com.kiru.panel" Version="1.2.0" />
+  </ExtensionList>
+  <ExecutionEnvironment>
+    <HostList>
+      <Host Name="PPRO" Version="[22.0,99.9]" />
+    </HostList>
+    <LocaleList>
+      <Locale Code="All" />
+    </LocaleList>
+    <RequiredRuntimeList>
+      <RequiredRuntime Name="CSXS" Version="11.0" />
+    </RequiredRuntimeList>
+  </ExecutionEnvironment>
+  <DispatchInfoList>
+    <Extension Id="com.kiru.panel">
+      <DispatchInfo>
+        <Resources>
+          <MainPath>./index.html</MainPath>
+          <ScriptPath>./jsx/Kiru_Premiere.jsx</ScriptPath>
+          <CEFCommandLine>
+            <!-- Node.js (window.cep_node) : lecture de l'audio des médias, ffmpeg, apparence partagée avec Cypher / Ongaku / Sori -->
+            <Parameter>--enable-nodejs</Parameter>
+            <Parameter>--allow-file-access</Parameter>
+            <Parameter>--allow-file-access-from-files</Parameter>
+          </CEFCommandLine>
+        </Resources>
+        <Lifecycle>
+          <AutoVisible>true</AutoVisible>
+        </Lifecycle>
+        <UI>
+          <Type>Panel</Type>
+          <Menu>Kiru — Autocut</Menu>
+          <Geometry>
+            <Size>
+              <Height>760</Height>
+              <Width>520</Width>
+            </Size>
+            <MinSize>
+              <Height>450</Height>
+              <Width>360</Width>
+            </MinSize>
+            <MaxSize>
+              <Height>2000</Height>
+              <Width>1600</Width>
+            </MaxSize>
+          </Geometry>
+        </UI>
+      </DispatchInfo>
+    </Extension>
+  </DispatchInfoList>
+</ExtensionManifest>

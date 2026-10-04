@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ExtensionManifest Version="10.0" ExtensionBundleId="com.cypher.studio.panel" ExtensionBundleVersion="2.9.0" ExtensionBundleName="Cypher" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <ExtensionList>
+    <Extension Id="com.cypher.studio.panel" Version="2.9.0" />
+  </ExtensionList>
+  <ExecutionEnvironment>
+    <HostList>
+      <Host Name="PPRO" Version="[14.0,99.9]" />
+    </HostList>
+    <LocaleList>
+      <Locale Code="All" />
+    </LocaleList>
+    <RequiredRuntimeList>
+      <RequiredRuntime Name="CSXS" Version="10.0" />
+    </RequiredRuntimeList>
+  </ExecutionEnvironment>
+  <DispatchInfoList>
+    <Extension Id="com.cypher.studio.panel">
+      <DispatchInfo>
+        <Resources>
+          <MainPath>./index.html</MainPath>
+          <ScriptPath>./jsx/CutFlow_Premiere.jsx</ScriptPath>
+          <CEFCommandLine>
+            <!-- Node.js en contexte séparé (window.cep_node) : lance FFmpeg pour le transcodage vidéo -->
+            <Parameter>--enable-nodejs</Parameter>
+            <Parameter>--allow-file-access</Parameter>
+            <Parameter>--allow-file-access-from-files</Parameter>
+          </CEFCommandLine>
+        </Resources>
+        <Lifecycle>
+          <AutoVisible>true</AutoVisible>
+        </Lifecycle>
+        <UI>
+          <Type>Panel</Type>
+          <Menu>Cypher — Avril Films</Menu>
+          <Geometry>
+            <Size>
+              <Height>750</Height>
+              <Width>480</Width>
+            </Size>
+            <MinSize>
+              <Height>450</Height>
+              <Width>380</Width>
+            </MinSize>
+            <MaxSize>
+              <Height>1600</Height>
+              <Width>1200</Width>
+            </MaxSize>
+          </Geometry>
+        </UI>
+      </DispatchInfo>
+    </Extension>
+  </DispatchInfoList>
+</ExtensionManifest>

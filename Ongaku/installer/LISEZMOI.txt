@@ -1,0 +1,33 @@
+ONGAKU {VERSION} — bibliothèque musique & SFX pour Premiere Pro
+Par Paul-Eliot · Libre et Open Source
+
+Compatibilité : Premiere Pro 2022 ou plus récent (Windows et macOS).
+
+INSTALLATION
+  1. Fermez Premiere Pro.
+  2. Windows : double-cliquez sur « Installer Ongaku.bat ».
+     macOS   : double-cliquez sur « Installer Ongaku.command ».
+               La première fois, macOS peut refuser un script non signé : faites
+               clic droit > Ouvrir, puis confirmez « Ouvrir ».
+  3. Ouvrez Premiere Pro puis : Fenêtre > Extensions > Ongaku — Musique.
+
+Aucun droit administrateur n'est nécessaire. L'installeur :
+  - autorise les extensions non signées dans Premiere Pro (réglage « PlayerDebugMode ») ;
+  - copie le panneau dans le dossier des extensions de votre compte :
+      Windows : %APPDATA%\Adobe\CEP\extensions\com.ongaku.panel
+      macOS   : ~/Library/Application Support/Adobe/CEP/extensions/com.ongaku.panel
+
+MISE À JOUR
+  Relancez simplement l'installeur d'une version plus récente (Premiere fermé).
+  Vos réglages, dossiers, favoris et le cache d'analyse sont conservés.
+
+DÉSINSTALLATION
+  Supprimez le dossier com.ongaku.panel indiqué ci-dessus.
+  (Cache d'analyse : %APPDATA%\Ongaku sous Windows, ~/Library/Application Support/Ongaku sous macOS.)
+
+PREMIERS PAS
+  - Bibliothèque : choisissez Musique ou SFX, puis « Ajouter un dossier ».
+  - In / Out (touches I, O, X) : limitent le placement, l'extrait glissé et les marqueurs.
+  - Beats : BPM, temps forts et marqueurs posés sur le clip.
+  - Fins : Reverb tail, Vinyl stop ou Fondu, pré-écoute puis rendu placé sur la timeline.
+  - Les fichiers placés vont dans le dossier Musique / SFX du projet (réglable : copie ou sur place).
