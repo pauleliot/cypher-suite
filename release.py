@@ -277,6 +277,58 @@ def mac_installer(app, pkg):
     return out
 
 
+# ==================== Mises à jour automatiques (js/suite-update.js des panneaux) ====================
+SITE_DIR = Path(r"D:\SITE PE")  # dépôt pauleliot.github.io : y publie updates.json
+
+
+def update_package(app, pkg):
+    """Paquet lu par le module de mise à jour des panneaux : le panneau seul, dans « <Nom>-<version>/ »"""
+    import hashlib
+    name, v = app["name"], version(app)
+    stage = unpack(pkg, OUT / "stage" / f"{app['id']}-upd")
+    out = OUT / f"{name}-{v}-update.zip"
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+        for f in sorted(stage.rglob("*")):
+            rel = f.relative_to(stage)
+            if f.is_file() and not (rel.name.startswith("Installer ") or rel.name == "LISEZMOI.txt"):
+                z.write(f, f"{name}-{v}/{rel.as_posix()}")
+    return out, hashlib.sha256(out.read_bytes()).hexdigest()
+
+
+def notes_for(app):
+    """Nouveautés de la version, lues dans <panneau>/NOUVEAUTES.txt : un bloc par version, sa 1re ligne = le numéro"""
+    f = ROOT / app["dir"] / "NOUVEAUTES.txt"
+    if not f.exists():
+        return ""
+    for block in re.split(r"\n\s*\n", f.read_text(encoding="utf-8").strip()):
+        lines = block.strip().splitlines()
+        if lines and lines[0].strip() == version(app):
+            return "\n".join(lines[1:]).strip()
+    return ""
+
+
+def write_feed(entries):
+    """updates.json du site : dernière version de chaque panneau (les panneaux absents de cette publication sont gardés)"""
+    import json
+    feed_path = SITE_DIR / "updates.json"
+    feed = {"apps": {}}
+    if feed_path.exists():
+        feed = json.loads(feed_path.read_text(encoding="utf-8"))
+    feed["apps"].update(entries)
+    feed_path.write_text(json.dumps(feed, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return feed_path
+
+
+def push_site(message):
+    git = shutil.which("git") or r"C:\Program Files\Git\cmd\git.exe"
+    subprocess.run([git, "-C", str(SITE_DIR), "add", "updates.json"], check=True)
+    if subprocess.run([git, "-C", str(SITE_DIR), "diff", "--cached", "--quiet"]).returncode == 0:
+        return print("updates.json : inchangé")
+    subprocess.run([git, "-C", str(SITE_DIR), "commit", "-q", "-m", message], check=True)
+    subprocess.run([git, "-C", str(SITE_DIR), "push", "-q"], check=True)
+    print("updates.json publié sur le site : les panneaux installés proposeront la mise à jour")
+
+
 # ==================== Publication ====================
 def repo_name():
     try:
@@ -288,11 +340,23 @@ def repo_name():
 
 
 def publish(app, files):
+    """Crée la Release ; si elle existe déjà, n'y ajoute que le paquet de mise à jour s'il manque.
+    Résout True si le paquet de mise à jour publié est celui de cette fabrication (son empreinte vaut pour updates.json)."""
+    import json
     tag = f"{app['id']}-v{version(app)}"
-    if subprocess.run([gh(), "release", "view", tag], cwd=ROOT, capture_output=True).returncode == 0:
-        print(f"{tag} : déjà publiée")
-        return
-    notes = (f"{app['name']} {version(app)} — {app['tagline']}.\n\n"
+    view = subprocess.run([gh(), "release", "view", tag, "--json", "assets"], cwd=ROOT, capture_output=True, text=True)
+    if view.returncode == 0:
+        upd = files[-1]
+        names = [a["name"] for a in json.loads(view.stdout).get("assets", [])]
+        if upd.name in names:
+            print(f"{tag} : déjà publiée")
+            return False
+        subprocess.run([gh(), "release", "upload", tag, str(upd)], cwd=ROOT, check=True)
+        print(f"{tag} : paquet de mise à jour ajouté")
+        return True
+    news = notes_for(app)
+    notes = (f"{app['name']} {version(app)} — {app['tagline']}.\n\n" + (f"**Nouveautés**\n{news}\n\n" if news else "") +
+             "Déjà installé ? Le panneau propose la mise à jour tout seul (bandeau « Mettre à jour »).\n\n"
              f"**Windows** : lancez `Installer-{app['name']}-{version(app)}.exe` (Premiere Pro fermé). "
              "Si Windows affiche « Windows a protégé votre ordinateur » : Informations complémentaires > Exécuter quand même.\n\n"
              f"**macOS** : dézippez, puis double-cliquez « Installer {app['name']} ». La première fois, macOS bloque une application "
@@ -300,20 +364,28 @@ def publish(app, files):
     subprocess.run([gh(), "release", "create", tag, *map(str, files), "--title", f"{app['name']} {version(app)}", "--notes", notes],
                    cwd=ROOT, check=True)
     print(f"{tag} : publiée")
+    return True
 
 
 def main():
     do_publish = "--publish" in sys.argv
     OUT.mkdir(exist_ok=True)
-    repo, links = repo_name(), []
+    repo, links, feed = repo_name(), [], {}
     for app in APPS:
         pk = package(app)
-        files = [windows_installer(app, pk["windows"]), mac_installer(app, pk["macos"])]
-        if do_publish:
-            publish(app, files)
+        upd, digest = update_package(app, pk["windows"])
+        files = [windows_installer(app, pk["windows"]), mac_installer(app, pk["macos"]), upd]
+        fresh = publish(app, files) if do_publish else False
         tag = f"{app['id']}-v{version(app)}"
-        links += [f"https://github.com/{repo}/releases/download/{tag}/{f.name}" for f in files]
+        links += [f"https://github.com/{repo}/releases/download/{tag}/{f.name}" for f in files[:2]]
+        # updates.json : seulement si le paquet publié est celui-ci (sinon son empreinte ne correspondrait pas)
+        if fresh:
+            feed[app["id"]] = {"name": app["name"], "version": version(app), "notes": notes_for(app),
+                               "url": f"https://github.com/{repo}/releases/download/{tag}/{upd.name}", "sha256": digest}
     shutil.rmtree(OUT / "stage", ignore_errors=True)
+    if do_publish and repo and feed:
+        write_feed(feed)
+        push_site("Mises à jour : " + ", ".join(f"{v['name']} {v['version']}" for v in feed.values()))
     # liens directs à reporter sur les pages plugins du site
     if repo:
         print("\nLiens de téléchargement :\n" + "\n".join(links))

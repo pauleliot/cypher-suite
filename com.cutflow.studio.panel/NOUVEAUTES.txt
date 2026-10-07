@@ -1,0 +1,7 @@
+2.10.0
+- Cypher Console (façon FX Console) : Ctrl+Espace (Windows) ou ⌥Espace (Mac) dans Premiere ouvre une petite fenêtre ; tapez le nom d'un effet vidéo ou audio, Entrée l'applique aux clips sélectionnés. Favoris (Ctrl+D) et derniers effets utilisés.
+- Retours : réponses Vimeo regroupées sous leur commentaire (plus de retour posé plusieurs fois), versions V1 / V2 reconnues avec filtre, choix de la version importée par la synchro Vimeo (la plus récente par défaut).
+- Retours : poignée pour agrandir la zone de texte, « + » pour lire un retour long en entier, option « Inclure les réponses ».
+- Audio : liste des fichiers convertis, mis en surbrillance dans le chutier.
+- Chutier › Modifier ouvre directement les réglages des chutiers.
+- Mises à jour : le panneau propose lui-même les nouvelles versions.
