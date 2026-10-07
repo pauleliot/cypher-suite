@@ -402,7 +402,9 @@ export function parseVimeoCSV(csvContent, fps = 25, categories = DEFAULT_MARKER_
   // réponses : colonne qui désigne le commentaire parent (« Parent », « In reply to »…), colonne qui contient
   // directement le texte des réponses (« Replies », « Réponses »), identifiant de chaque commentaire (« # », « ID »)
   const parentIdx = find(/(parent|reply to|in reply|en reponse|reponse a)/);
-  const repliesIdx = find(/^(replies|reply|reponses?|answers?)$/);
+  const repliesIdx = find(/^(replies|reply|reponses?|answers?|reply (text|comment|note)|texte de la reponse)$/);
+  // auteur de la réponse quand elle est dans sa propre colonne (« Reply User », « Auteur de la réponse »)
+  const replyAuthorIdx = find(/(reply|reponse).*(user|name|nom|auteur|author)|(user|name|nom|auteur|author).*(reply|reponse)/);
   const idIdx = find(/^(#|id|n°|no|numero|number|comment id|note id)$/);
   const versionIdx = find(/^(version|vers)$/);
   const hasHeader = !firstIsData && (tcIdx >= 0 || commentIdx >= 0);
@@ -439,7 +441,8 @@ export function parseVimeoCSV(csvContent, fps = 25, categories = DEFAULT_MARKER_
     // (sans colonne « parent », une ligne sans timecode est prise pour une réponse au commentaire précédent)
     const isReply = parentRef && !/^(no|non|false|0|-)$/i.test(parentRef) || parentIdx < 0 && !hasTime && comment.trim() !== '' || /^\s*↳/.test(comment);
     if (isReply) {
-      const parent = byId.get(parentRef) || results[results.length - 1];
+      // parent désigné par son numéro, ou par son texte (« Parent comment »), sinon le commentaire précédent
+      const parent = byId.get(parentRef) || (parentRef ? results.find(o => reviewMarkerText(o.comment) === reviewMarkerText(parentRef)) : undefined) || results[results.length - 1];
       if (parent && comment.trim()) {
         const reply = parseReplyText(comment, author.trim());
         if (author.trim()) reply.author = author.trim();
@@ -474,10 +477,28 @@ export function parseVimeoCSV(csvContent, fps = 25, categories = DEFAULT_MARKER_
         version: detectVersion(String(row[versionIdx]))
       } : {})
     });
-    const added = results[results.length - 1];
+    let added = results[results.length - 1];
+    // Vimeo répète le commentaire sur la ligne de chaque réponse : même position + même texte = le même retour,
+    // la ligne n'apporte que sa réponse (sinon le retour serait posé autant de fois qu'il a de réponses)
+    const twin = results.slice(0, -1).find(o => Math.abs(o.seconds - added.seconds) < 0.05 && reviewMarkerText(o.comment) === reviewMarkerText(added.comment));
+    if (twin) {
+      results.pop();
+      added = twin;
+    }
     // réponses écrites dans la même ligne (« Monteur : fait | Client : merci »)
     const inlineReplies = repliesIdx >= 0 ? String(row[repliesIdx] ?? '').trim() : '';
-    if (inlineReplies) added.replies = inlineReplies.split(/\s*\|\s*|\s*↳\s*/).filter(Boolean).map(t => parseReplyText(t));
+    if (inlineReplies) {
+      const replyAuthor = replyAuthorIdx >= 0 ? String(row[replyAuthorIdx] ?? '').trim() : '';
+      const parsedReplies = inlineReplies.split(/\s*\|\s*|\s*↳\s*/).filter(Boolean).map(t => {
+        const r = parseReplyText(t);
+        return replyAuthor && !r.author ? {
+          ...r,
+          author: replyAuthor
+        } : r;
+      });
+      const existing = added.replies || [];
+      added.replies = [...existing, ...parsedReplies.filter(r => !existing.some(e => e.text === r.text && e.author === r.author))];
+    }
     if (idIdx >= 0 && String(row[idIdx] ?? '').trim()) byId.set(String(row[idIdx]).trim(), added);
   }
   return results.sort((a, b) => a.seconds - b.seconds);
@@ -1491,9 +1512,45 @@ export async function transcodeAndRelinkCompressedAudio(settings, onProgress, sk
     convertedCount: converted,
     relinkedCount: relink?.relinkedCount || 0,
     renamedCount: relink?.renamedCount || 0,
+    items: relink?.items || [],
     failures,
     message: relink?.message
   };
+}
+/**
+ * Sélectionne des éléments dans le panneau Projet (surbrillance), retrouvés par leur nodeId.
+ * Renvoie le nombre d'éléments trouvés et, si Premiere sait la relire, la taille réelle de la sélection.
+ */
+export async function selectProjectItemsInPremiere(ids) {
+  const script = `
+    (function() {
+      try {
+        if (!app.project) return JSON.stringify({ success: false, error: "Aucun projet ouvert" });
+        var wanted = ${JSON.stringify(ids)};
+        var map = {};
+        for (var w = 0; w < wanted.length; w++) map[wanted[w]] = true;
+        var items = [];
+        function walk(item) {
+          if (!item) return;
+          if (map[String(item.nodeId)]) items.push(item);
+          if (item.type === ProjectItemType.BIN || item.type === ProjectItemType.ROOT) {
+            for (var i = 0; i < item.children.numItems; i++) walk(item.children[i]);
+          }
+        }
+        walk(app.project.rootItem);
+        var done = 0;
+        for (var k = 0; k < items.length; k++) {
+          try { items[k].select(); done++; } catch (e) {}
+        }
+        var selected = -1;
+        try { var sel = app.getCurrentProjectViewSelection(); selected = sel ? sel.length : 0; } catch (e) {}
+        return JSON.stringify({ success: done > 0, found: items.length, selected: selected, error: done ? undefined : "élément introuvable dans le projet" });
+      } catch (err) {
+        return JSON.stringify({ success: false, error: err.toString() });
+      }
+    })();
+  `;
+  return evalExtendScript(script);
 }
 /**
  * Lance le remplacement direct dans Premiere Pro des pistes audio compressées par leur version WAV
@@ -1512,6 +1569,15 @@ export async function executeDirectAudioRelinkInPremiere(preferredSuffix = '_48k
         var notFoundPaths = [];
 
         var renamed = 0;
+        // éléments convertis / renommés : nom, identifiant et chutier, pour les montrer et les sélectionner
+        var touched = [];
+        var touchedIds = {};
+        function remember(item, binPath, from) {
+          var id = String(item.nodeId);
+          if (touchedIds[id]) return;
+          touchedIds[id] = true;
+          touched.push({ id: id, name: item.name, bin: binPath, from: from });
+        }
 
         // L'élément de projet garde son nom d'origine (.mp3) après changeMediaPath :
         // on lui donne le nom du WAV pour qu'il apparaisse comme tel dans Premiere
@@ -1523,12 +1589,13 @@ export async function executeDirectAudioRelinkInPremiere(preferredSuffix = '_48k
           }
         }
 
-        function checkAndRelink(item) {
+        function checkAndRelink(item, binPath) {
           if (!item) return;
           // La racine du projet est de type ROOT (pas BIN) : on la parcourt aussi
           if (item.type === ProjectItemType.BIN || item.type === ProjectItemType.ROOT) {
+            var here = item.type === ProjectItemType.ROOT ? "" : (binPath ? binPath + " / " : "") + item.name;
             for (var i = 0; i < item.children.numItems; i++) {
-              checkAndRelink(item.children[i]);
+              checkAndRelink(item.children[i], here);
             }
           } else if (item.type === ProjectItemType.CLIP || item.type === ProjectItemType.FILE) {
             var p = "";
@@ -1556,7 +1623,9 @@ export async function executeDirectAudioRelinkInPremiere(preferredSuffix = '_48k
                     var ok = item.changeMediaPath(targetFile.fsName, true);
                     if (ok || ok === undefined) {
                       relinked++;
+                      var before = item.name;
                       try { renameToFile(item, targetFile.fsName); } catch(e) {}
+                      remember(item, binPath, before);
                     }
                   } catch(e) {
                     notFoundPaths.push(item.name + ": " + e.toString());
@@ -1565,19 +1634,21 @@ export async function executeDirectAudioRelinkInPremiere(preferredSuffix = '_48k
                   notFoundPaths.push(item.name + " (WAV introuvable à côté : " + candidate1 + ")");
                 }
               } else if (/\.wav$/i.test(p) && /\.(mp3|m4a|aac)$/i.test(item.name)) {
-                try { renameToFile(item, p); } catch(e) {}
+                var oldName = item.name;
+                try { renameToFile(item, p); remember(item, binPath, oldName); } catch(e) {}
               }
             }
           }
         }
 
-        checkAndRelink(app.project.rootItem);
+        checkAndRelink(app.project.rootItem, "");
 
         if (relinked > 0 || renamed > 0) {
           return JSON.stringify({
             success: true,
             relinkedCount: relinked,
             renamedCount: renamed,
+            items: touched,
             message: (relinked > 0 ? relinked + " piste(s) reliée(s) au master WAV" : "Pistes déjà reliées au WAV") + (renamed > 0 ? ", " + renamed + " élément(s) renommé(s) en .wav dans le projet" : "") + "."
           });
         } else if (pendingFiles.length === 0) {
@@ -4009,8 +4080,23 @@ export const AudioConverter = ({
   const [isRelinking, setIsRelinking] = useState(false);
   const [relinkStatusMessage, setRelinkStatusMessage] = useState(null);
   const [progressMessage, setProgressMessage] = useState(null);
+  // derniers fichiers convertis : listés sous le message et mis en surbrillance dans le chutier
+  const [convertedItems, setConvertedItems] = useState([]);
+  const [selectInfo, setSelectInfo] = useState(null);
   const insidePremiere = isRunningInPremiere();
   const isLoopRunningRef = useRef(false);
+  const highlightInBin = async items => {
+    if (items.length === 0 || !insidePremiere) return;
+    const res = await selectProjectItemsInPremiere(items.map(i => i.id)).catch(() => null);
+    if (!res || !res.success) setSelectInfo(`Sélection dans le chutier impossible${res?.error ? ` : ${res.error}` : ''}.`);else if (items.length > 1 && res.selected !== undefined && res.selected >= 0 && res.selected < items.length) setSelectInfo(`Premiere ne garde que le dernier élément sélectionné : cliquez sur un fichier pour le retrouver.`);else setSelectInfo(null);
+  };
+  /** Après une conversion : liste des fichiers (remplace la précédente) et surbrillance dans le chutier */
+  const showConverted = res => {
+    const items = Array.isArray(res?.items) ? res.items : [];
+    if (items.length === 0) return;
+    setConvertedItems(items);
+    highlightInBin(items);
+  };
   // Fichiers dont la conversion a échoué : la boucle auto ne les retente pas en boucle
   const failedPathsRef = useRef(new Set());
   const settingsRef = useRef(audioSettings);
@@ -4050,6 +4136,7 @@ export const AudioConverter = ({
                 isError: tr.failures?.length > 0 && tr.relinkedCount === 0,
                 message: describeTranscodeResult(tr)
               });
+              showConverted(tr);
               const updated = await scanPremiereProjectMemory();
               if (!isCancelled && updated?.success) setScanResult(updated);
             }
@@ -4088,6 +4175,7 @@ export const AudioConverter = ({
           isError: res.failures.length > 0 && res.relinkedCount === 0,
           message: describeTranscodeResult(res)
         });
+        showConverted(res);
         const updated = await scanPremiereProjectMemory();
         if (updated?.success) setScanResult(updated);
       } else {
@@ -4131,6 +4219,56 @@ export const AudioConverter = ({
       }), relinkStatusMessage && /*#__PURE__*/_jsx(StatusMessage, {
         isError: relinkStatusMessage.isError,
         message: relinkStatusMessage.message
+      }), convertedItems.length > 0 && /*#__PURE__*/_jsxs("div", {
+        className: "rounded-lg border border-white/10 bg-zinc-900/60 overflow-hidden",
+        children: [/*#__PURE__*/_jsxs("div", {
+          className: "px-2.5 py-1.5 border-b border-white/10 flex items-center justify-between gap-2 text-[11px]",
+          children: [/*#__PURE__*/_jsx("span", {
+            className: "text-zinc-400",
+            children: "Fichier(s) converti(s)"
+          }), /*#__PURE__*/_jsxs("span", {
+            className: "flex items-center gap-2",
+            children: [convertedItems.length > 1 && /*#__PURE__*/_jsx("button", {
+              onClick: () => highlightInBin(convertedItems),
+              className: "text-emerald-300 hover:text-emerald-200 underline cursor-pointer",
+              children: "Tout s\xE9lectionner"
+            }), /*#__PURE__*/_jsx("button", {
+              onClick: () => {
+                setConvertedItems([]);
+                setSelectInfo(null);
+              },
+              className: "text-zinc-500 hover:text-zinc-200 cursor-pointer",
+              title: "Effacer la liste",
+              children: /*#__PURE__*/_jsx(X, {
+                className: "w-3.5 h-3.5"
+              })
+            })]
+          })]
+        }), /*#__PURE__*/_jsx("div", {
+          className: "divide-y divide-white/5",
+          children: convertedItems.map(it => /*#__PURE__*/_jsxs("button", {
+            onClick: () => highlightInBin([it]),
+            className: "w-full flex items-center gap-2 px-2.5 py-1.5 text-left hover:bg-white/[0.04] transition cursor-pointer",
+            title: "S\xE9lectionner dans le chutier de Premiere",
+            children: [/*#__PURE__*/_jsx(FileAudio, {
+              className: "w-3.5 h-3.5 text-emerald-300 flex-shrink-0"
+            }), /*#__PURE__*/_jsxs("span", {
+              className: "min-w-0 flex-1",
+              children: [/*#__PURE__*/_jsx("span", {
+                className: "block text-xs text-zinc-100 truncate",
+                children: it.name
+              }), /*#__PURE__*/_jsxs("span", {
+                className: "block text-[10px] text-zinc-500 truncate",
+                children: [it.bin || 'Racine du projet', it.from && it.from !== it.name ? ` · avant : ${it.from}` : '']
+              })]
+            }), /*#__PURE__*/_jsx(FolderOpen, {
+              className: "w-3.5 h-3.5 text-zinc-500 flex-shrink-0"
+            })]
+          }, it.id))
+        }), selectInfo && /*#__PURE__*/_jsx("div", {
+          className: "px-2.5 py-1.5 border-t border-white/10 text-[10px] text-zinc-500",
+          children: selectInfo
+        })]
       }), /*#__PURE__*/_jsxs(PrimaryButton, {
         onClick: handleManualRelink,
         disabled: isRelinking,
@@ -8584,8 +8722,9 @@ export const SettingsModal = ({
   onUpdateDeliveryPresets,
   initialTab
 }) => {
-  const [activeTab, setActiveTab] = useState('audio');
-  useEffect(() => {
+  const [activeTab, setActiveTab] = useState(() => initialTab || 'audio');
+  // onglet demandé appliqué avant l'affichage (sinon l'onglet Audio apparaît un instant)
+  React.useLayoutEffect(() => {
     if (isOpen && initialTab) setActiveTab(initialTab);
   }, [isOpen, initialTab]);
   const [newPresetName, setNewPresetName] = useState('');
@@ -9855,6 +9994,62 @@ const ExpandableText = ({
   });
 };
 
+/**
+ * Poignée large sous une zone de texte : glisser vers le bas / le haut pour l'agrandir ou la réduire,
+ * double-clic pour basculer entre taille compacte et grande.
+ */
+const ResizeGrip = ({
+  height,
+  onChange,
+  min,
+  max,
+  compact,
+  tall
+}) => {
+  const drag = useRef(null);
+  const clamp = h => Math.round(Math.max(min, Math.min(max, h)));
+  return /*#__PURE__*/_jsx("div", {
+    role: "separator",
+    "aria-orientation": "horizontal",
+    title: "Glisser pour agrandir ou r\xE9duire \xB7 double-clic : grande / petite taille",
+    onPointerDown: e => {
+      drag.current = {
+        y: e.clientY,
+        h: height
+      };
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {}
+    },
+    onPointerMove: e => drag.current && onChange(clamp(drag.current.h + e.clientY - drag.current.y)),
+    onPointerUp: () => drag.current = null,
+    onPointerCancel: () => drag.current = null,
+    onDoubleClick: () => onChange(height < (compact + tall) / 2 ? tall : compact),
+    className: "group flex justify-center py-1 cursor-ns-resize select-none touch-none",
+    children: /*#__PURE__*/_jsx("span", {
+      className: "flex items-center justify-center px-4 py-0.5 rounded-full text-zinc-400 group-hover:text-cream-300 group-hover:bg-white/5 transition",
+      children: /*#__PURE__*/_jsxs("svg", {
+        width: "16",
+        height: "16",
+        viewBox: "0 0 16 16",
+        fill: "none",
+        stroke: "currentColor",
+        strokeWidth: "1.5",
+        strokeLinecap: "round",
+        strokeLinejoin: "round",
+        "aria-hidden": "true",
+        children: [/*#__PURE__*/_jsx("path", {
+          d: "M4.5 5L8 2l3.5 3"
+        }), /*#__PURE__*/_jsx("path", {
+          d: "M4 8h8"
+        }), /*#__PURE__*/_jsx("path", {
+          d: "M4.5 11L8 14l3.5-3"
+        })]
+      })
+    })
+  });
+};
+
 /** Interrupteur compact ON/OFF */
 const ToggleSwitch = ({
   on,
@@ -9992,6 +10187,9 @@ export const ReviewMarkersHub = ({
   onJumpToTimecode
 }) => {
   const [rawText, setRawText] = useState(() => readStored(REVIEW_STORAGE_KEYS.draft, ''));
+  // hauteur de la zone de saisie, réglée avec la poignée (mémorisée)
+  const [draftHeight, setDraftHeight] = useState(() => readStored('cutflow.reviewDraftHeight', 120));
+  useEffect(() => writeStored('cutflow.reviewDraftHeight', draftHeight), [draftHeight]);
   const [screenshotDataUrl, setScreenshotDataUrl] = useState(null);
   const [isAiProcessing, setIsAiProcessing] = useState(false);
   const [aiError, setAiError] = useState(null);
@@ -10021,6 +10219,10 @@ export const ReviewMarkersHub = ({
     folder: defaultDownloadsFolder(),
     ...readStored(REVIEW_SYNC_KEY, {})
   }));
+  const syncRef = useRef(sync);
+  syncRef.current = sync;
+  // versions trouvées dans les noms des CSV du dossier (menu « Version » de la synchro)
+  const [folderVersions, setFolderVersions] = useState([]);
   const [syncInfo, setSyncInfo] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
   useEffect(() => writeStored(REVIEW_SYNC_KEY, sync), [sync]);
@@ -10423,17 +10625,23 @@ export const ReviewMarkersHub = ({
     for (const f of listCsv(folder)) seen[f.path] = f.mtime;
     writeStored(REVIEW_SYNC_SEEN_KEY, seen);
   };
+  useEffect(() => {
+    setFolderVersions(Array.from(new Set(listCsv(sync.folder).map(f => detectVersion(f.name)).filter(Boolean))).sort((a, b) => versionRank(a) - versionRank(b)));
+  }, [sync.folder]);
   const syncBusyRef = useRef(false);
   /** Importe les nouveaux CSV (ou, si force, le plus récent qui correspond au projet) et les pose sur la timeline */
   const runSync = async (folder, force) => {
     if (syncBusyRef.current || !isRunningInPremiere()) return;
     const files = listCsv(folder).sort((a, b) => a.mtime - b.mtime);
+    setFolderVersions(Array.from(new Set(files.map(f => detectVersion(f.name)).filter(Boolean))).sort((a, b) => versionRank(a) - versionRank(b)));
+    const wanted = syncRef.current.version && syncRef.current.version !== 'latest' ? syncRef.current.version : null;
     const seen = readStored(REVIEW_SYNC_SEEN_KEY, {});
-    const candidates = force ? [...files].reverse() : files.filter(f => seen[f.path] !== f.mtime);
+    // « maintenant » : version choisie, sinon la plus récente (V3 avant V2), puis le fichier le plus récent
+    const candidates = force ? [...files].filter(f => !wanted || detectVersion(f.name) === wanted).sort((a, b) => versionRank(detectVersion(b.name) || undefined) - versionRank(detectVersion(a.name) || undefined) || b.mtime - a.mtime) : files.filter(f => seen[f.path] !== f.mtime);
     if (candidates.length === 0) {
       if (force) setSyncInfo({
         isError: true,
-        message: `Aucun CSV dans ${folder}.`
+        message: wanted ? `Aucun CSV de la ${wanted} dans ${folder}.` : `Aucun CSV dans ${folder}.`
       });
       return;
     }
@@ -10451,9 +10659,20 @@ export const ReviewMarkersHub = ({
           continue;
         }
         if (!looksLikeReviewCSV(text)) continue;
-        // version : un CSV « V1 » n'est jamais posé sur une séquence « V2 »
+        // version : celle choisie dans le menu ; sinon jamais un CSV « V1 » sur une séquence « V2 », et pas une
+        // version plus ancienne que la plus récente déposée pour ce projet
         const csvVersion = detectVersion(f.name);
-        const targetVersion = detectVersion(names.sequence) || detectVersion(names.project);
+        const targetVersion = wanted || detectVersion(names.sequence) || detectVersion(names.project);
+        if (wanted && csvVersion !== wanted) continue;
+        if (!wanted && !targetVersion && csvVersion) {
+          const newest = files.filter(o => Math.max(nameSimilarity(o.name, names.project), nameSimilarity(o.name, names.sequence)) >= REVIEW_SYNC_MIN_SCORE).reduce((m, o) => Math.max(m, versionRank(detectVersion(o.name) || undefined)), -1);
+          if (versionRank(csvVersion) < newest) {
+            if (!force) setSyncInfo({
+              message: `${f.name} ignoré : une version plus récente (V${newest}) est dans le dossier.`
+            });
+            continue;
+          }
+        }
         if (csvVersion && targetVersion && csvVersion !== targetVersion) {
           if (!force || f === candidates[candidates.length - 1]) setSyncInfo({
             isError: true,
@@ -10758,12 +10977,23 @@ export const ReviewMarkersHub = ({
     className: "space-y-3",
     children: [/*#__PURE__*/_jsxs("section", {
       className: "rounded-2xl border border-white/10 bg-zinc-900/50 p-4 space-y-3",
-      children: [/*#__PURE__*/_jsx("textarea", {
-        value: rawText,
-        onChange: e => setRawText(e.target.value),
-        rows: 5,
-        className: "w-full bg-zinc-950/70 border border-white/10 rounded-xl p-3 text-xs font-mono text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-emerald-400 transition resize-y",
-        placeholder: "Collez les retours du client (mail, WhatsApp, Slack…) :\n01:14 couper l'hésitation avant la phrase\n02:25 - 02:35 baisser la musique de 3 dB\n1m24s corriger la faute dans le titre"
+      children: [/*#__PURE__*/_jsxs("div", {
+        children: [/*#__PURE__*/_jsx("textarea", {
+          value: rawText,
+          onChange: e => setRawText(e.target.value),
+          style: {
+            height: draftHeight
+          },
+          className: "w-full bg-zinc-950/70 border border-white/10 rounded-xl p-3 text-xs font-mono text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-emerald-400 transition-colors resize-none block",
+          placeholder: "Collez les retours du client (mail, WhatsApp, Slack…) :\n01:14 couper l'hésitation avant la phrase\n02:25 - 02:35 baisser la musique de 3 dB\n1m24s corriger la faute dans le titre"
+        }), /*#__PURE__*/_jsx(ResizeGrip, {
+          height: draftHeight,
+          onChange: setDraftHeight,
+          min: 70,
+          max: 700,
+          compact: 120,
+          tall: 360
+        })]
       }), /*#__PURE__*/_jsxs("div", {
         className: "flex flex-wrap items-center justify-between gap-2",
         children: [/*#__PURE__*/_jsxs("div", {
@@ -10835,11 +11065,29 @@ export const ReviewMarkersHub = ({
             className: "w-3.5 h-3.5"
           }), "Choisir\u2026"]
         })]
+      }), /*#__PURE__*/_jsxs("div", {
+        className: "flex items-center gap-2 text-[11px] text-zinc-400",
+        children: ["Version import\xE9e", /*#__PURE__*/_jsxs("select", {
+          value: sync.version && sync.version !== 'latest' ? sync.version : 'latest',
+          onChange: e => setSync({
+            ...sync,
+            version: e.target.value
+          }),
+          className: "bg-zinc-950 border border-white/10 rounded-full px-2.5 py-1 text-[11px] font-semibold text-zinc-200 focus:outline-none focus:border-emerald-400 cursor-pointer",
+          title: "La plus r\xE9cente : V3 plut\xF4t que V2 quand les deux CSV sont dans le dossier",
+          children: [/*#__PURE__*/_jsx("option", {
+            value: "latest",
+            children: "La plus r\xE9cente"
+          }), Array.from(new Set([...folderVersions, ...(sync.version && sync.version !== 'latest' ? [sync.version] : [])])).sort((a, b) => versionRank(a) - versionRank(b)).map(v => /*#__PURE__*/_jsx("option", {
+            value: v,
+            children: v
+          }, v))]
+        })]
       }), sync.enabled && /*#__PURE__*/_jsx("button", {
         onClick: () => runSync(sync.folder, true),
         disabled: isSyncing,
         className: "text-[11px] text-emerald-300 hover:text-emerald-200 underline cursor-pointer disabled:opacity-50",
-        title: "Importe le CSV le plus r\xE9cent du dossier qui correspond au projet",
+        title: "Importe le CSV du projet dans la version choisie (par d\xE9faut la plus r\xE9cente)",
         children: "Synchroniser maintenant"
       }), syncInfo && /*#__PURE__*/_jsx(StatusMessage, {
         isError: syncInfo.isError,
@@ -11213,6 +11461,18 @@ export default function App() {
     setSettingsTab(tab);
     setIsSettingsOpen(true);
   };
+
+  // Ctrl+Espace → console d'effets : la fenêtre cachée démarrée avec Premiere tient déjà le raccourci ; le panneau
+  // le lance aussi, au cas où Premiere n'aurait pas démarré cette fenêtre (une seule instance active, voir le script)
+  useEffect(() => {
+    if (!isRunningInPremiere()) return;
+    const start = () => window.CypherHotkey?.start();
+    if (window.CypherHotkey) return void start();
+    const tag = document.createElement('script');
+    tag.src = './vendor/cypher-hotkey.js';
+    tag.onload = start;
+    document.head.appendChild(tag);
+  }, []);
   const [deliveryPresets, setDeliveryPresets] = useState(loadDeliveryPresets);
   useEffect(() => saveDeliveryPresets(deliveryPresets), [deliveryPresets]);
   const [currentProjectName, setCurrentProjectName] = useState('');
@@ -11299,7 +11559,7 @@ export default function App() {
         className: activeTab === 'audio' ? '' : 'hidden',
         children: mounted('audio') && /*#__PURE__*/_jsx(AudioConverter, {
           audioSettings: audioSettings,
-          onOpenSettings: () => openSettings()
+          onOpenSettings: () => openSettings('audio')
         })
       }), /*#__PURE__*/_jsx("div", {
         className: activeTab === 'video' ? '' : 'hidden',
@@ -11308,7 +11568,7 @@ export default function App() {
         className: activeTab === 'binning' ? '' : 'hidden',
         children: mounted('binning') && /*#__PURE__*/_jsx(AutoBinning, {
           rules: binRules,
-          onOpenSettings: () => openSettings()
+          onOpenSettings: () => openSettings('binning')
         })
       }), /*#__PURE__*/_jsx("div", {
         className: activeTab === 'download' ? '' : 'hidden',

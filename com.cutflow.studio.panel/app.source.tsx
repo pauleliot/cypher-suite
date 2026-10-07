@@ -478,7 +478,9 @@ export function parseVimeoCSV(
   // réponses : colonne qui désigne le commentaire parent (« Parent », « In reply to »…), colonne qui contient
   // directement le texte des réponses (« Replies », « Réponses »), identifiant de chaque commentaire (« # », « ID »)
   const parentIdx = find(/(parent|reply to|in reply|en reponse|reponse a)/);
-  const repliesIdx = find(/^(replies|reply|reponses?|answers?)$/);
+  const repliesIdx = find(/^(replies|reply|reponses?|answers?|reply (text|comment|note)|texte de la reponse)$/);
+  // auteur de la réponse quand elle est dans sa propre colonne (« Reply User », « Auteur de la réponse »)
+  const replyAuthorIdx = find(/(reply|reponse).*(user|name|nom|auteur|author)|(user|name|nom|auteur|author).*(reply|reponse)/);
   const idIdx = find(/^(#|id|n°|no|numero|number|comment id|note id)$/);
   const versionIdx = find(/^(version|vers)$/);
   const hasHeader = !firstIsData && (tcIdx >= 0 || commentIdx >= 0);
@@ -517,7 +519,11 @@ export function parseVimeoCSV(
     const isReply =
       (parentRef && !/^(no|non|false|0|-)$/i.test(parentRef)) || (parentIdx < 0 && !hasTime && comment.trim() !== '') || /^\s*↳/.test(comment);
     if (isReply) {
-      const parent = byId.get(parentRef) || results[results.length - 1];
+      // parent désigné par son numéro, ou par son texte (« Parent comment »), sinon le commentaire précédent
+      const parent =
+        byId.get(parentRef) ||
+        (parentRef ? results.find((o) => reviewMarkerText(o.comment) === reviewMarkerText(parentRef)) : undefined) ||
+        results[results.length - 1];
       if (parent && comment.trim()) {
         const reply = parseReplyText(comment, author.trim());
         if (author.trim()) reply.author = author.trim();
@@ -547,10 +553,30 @@ export function parseVimeoCSV(
       source: 'vimeo',
       ...(versionIdx >= 0 && detectVersion(String(row[versionIdx] ?? '')) ? { version: detectVersion(String(row[versionIdx]))! } : {}),
     });
-    const added = results[results.length - 1];
+    let added = results[results.length - 1];
+    // Vimeo répète le commentaire sur la ligne de chaque réponse : même position + même texte = le même retour,
+    // la ligne n'apporte que sa réponse (sinon le retour serait posé autant de fois qu'il a de réponses)
+    const twin = results.slice(0, -1).find(
+      (o) => Math.abs(o.seconds - added.seconds) < 0.05 && reviewMarkerText(o.comment) === reviewMarkerText(added.comment)
+    );
+    if (twin) {
+      results.pop();
+      added = twin;
+    }
     // réponses écrites dans la même ligne (« Monteur : fait | Client : merci »)
     const inlineReplies = repliesIdx >= 0 ? String(row[repliesIdx] ?? '').trim() : '';
-    if (inlineReplies) added.replies = inlineReplies.split(/\s*\|\s*|\s*↳\s*/).filter(Boolean).map((t) => parseReplyText(t));
+    if (inlineReplies) {
+      const replyAuthor = replyAuthorIdx >= 0 ? String(row[replyAuthorIdx] ?? '').trim() : '';
+      const parsedReplies = inlineReplies
+        .split(/\s*\|\s*|\s*↳\s*/)
+        .filter(Boolean)
+        .map((t) => {
+          const r = parseReplyText(t);
+          return replyAuthor && !r.author ? { ...r, author: replyAuthor } : r;
+        });
+      const existing = added.replies || [];
+      added.replies = [...existing, ...parsedReplies.filter((r) => !existing.some((e) => e.text === r.text && e.author === r.author))];
+    }
     if (idIdx >= 0 && String(row[idIdx] ?? '').trim()) byId.set(String(row[idIdx]).trim(), added);
   }
 
@@ -1575,9 +1601,53 @@ export async function transcodeAndRelinkCompressedAudio(
         convertedCount: converted,
         relinkedCount: relink?.relinkedCount || 0,
         renamedCount: relink?.renamedCount || 0,
+        items: (relink as any)?.items || [],
         failures,
         message: relink?.message,
     };
+}
+
+export interface ConvertedProjectItem {
+  id: string; // nodeId de l'élément de projet
+  name: string; // nom actuel (.wav)
+  bin: string; // chutier (« 04_VOIX / Interviews »), vide = racine
+  from?: string; // nom d'origine (.mp3)
+}
+
+/**
+ * Sélectionne des éléments dans le panneau Projet (surbrillance), retrouvés par leur nodeId.
+ * Renvoie le nombre d'éléments trouvés et, si Premiere sait la relire, la taille réelle de la sélection.
+ */
+export async function selectProjectItemsInPremiere(ids: string[]): Promise<{ success: boolean; found?: number; selected?: number; error?: string }> {
+  const script = `
+    (function() {
+      try {
+        if (!app.project) return JSON.stringify({ success: false, error: "Aucun projet ouvert" });
+        var wanted = ${JSON.stringify(ids)};
+        var map = {};
+        for (var w = 0; w < wanted.length; w++) map[wanted[w]] = true;
+        var items = [];
+        function walk(item) {
+          if (!item) return;
+          if (map[String(item.nodeId)]) items.push(item);
+          if (item.type === ProjectItemType.BIN || item.type === ProjectItemType.ROOT) {
+            for (var i = 0; i < item.children.numItems; i++) walk(item.children[i]);
+          }
+        }
+        walk(app.project.rootItem);
+        var done = 0;
+        for (var k = 0; k < items.length; k++) {
+          try { items[k].select(); done++; } catch (e) {}
+        }
+        var selected = -1;
+        try { var sel = app.getCurrentProjectViewSelection(); selected = sel ? sel.length : 0; } catch (e) {}
+        return JSON.stringify({ success: done > 0, found: items.length, selected: selected, error: done ? undefined : "élément introuvable dans le projet" });
+      } catch (err) {
+        return JSON.stringify({ success: false, error: err.toString() });
+      }
+    })();
+  `;
+  return evalExtendScript(script);
 }
 /**
  * Lance le remplacement direct dans Premiere Pro des pistes audio compressées par leur version WAV
@@ -1601,6 +1671,15 @@ export async function executeDirectAudioRelinkInPremiere(preferredSuffix: string
         var notFoundPaths = [];
 
         var renamed = 0;
+        // éléments convertis / renommés : nom, identifiant et chutier, pour les montrer et les sélectionner
+        var touched = [];
+        var touchedIds = {};
+        function remember(item, binPath, from) {
+          var id = String(item.nodeId);
+          if (touchedIds[id]) return;
+          touchedIds[id] = true;
+          touched.push({ id: id, name: item.name, bin: binPath, from: from });
+        }
 
         // L'élément de projet garde son nom d'origine (.mp3) après changeMediaPath :
         // on lui donne le nom du WAV pour qu'il apparaisse comme tel dans Premiere
@@ -1612,12 +1691,13 @@ export async function executeDirectAudioRelinkInPremiere(preferredSuffix: string
           }
         }
 
-        function checkAndRelink(item) {
+        function checkAndRelink(item, binPath) {
           if (!item) return;
           // La racine du projet est de type ROOT (pas BIN) : on la parcourt aussi
           if (item.type === ProjectItemType.BIN || item.type === ProjectItemType.ROOT) {
+            var here = item.type === ProjectItemType.ROOT ? "" : (binPath ? binPath + " / " : "") + item.name;
             for (var i = 0; i < item.children.numItems; i++) {
-              checkAndRelink(item.children[i]);
+              checkAndRelink(item.children[i], here);
             }
           } else if (item.type === ProjectItemType.CLIP || item.type === ProjectItemType.FILE) {
             var p = "";
@@ -1645,7 +1725,9 @@ export async function executeDirectAudioRelinkInPremiere(preferredSuffix: string
                     var ok = item.changeMediaPath(targetFile.fsName, true);
                     if (ok || ok === undefined) {
                       relinked++;
+                      var before = item.name;
                       try { renameToFile(item, targetFile.fsName); } catch(e) {}
+                      remember(item, binPath, before);
                     }
                   } catch(e) {
                     notFoundPaths.push(item.name + ": " + e.toString());
@@ -1654,19 +1736,21 @@ export async function executeDirectAudioRelinkInPremiere(preferredSuffix: string
                   notFoundPaths.push(item.name + " (WAV introuvable à côté : " + candidate1 + ")");
                 }
               } else if (/\.wav$/i.test(p) && /\.(mp3|m4a|aac)$/i.test(item.name)) {
-                try { renameToFile(item, p); } catch(e) {}
+                var oldName = item.name;
+                try { renameToFile(item, p); remember(item, binPath, oldName); } catch(e) {}
               }
             }
           }
         }
 
-        checkAndRelink(app.project.rootItem);
+        checkAndRelink(app.project.rootItem, "");
 
         if (relinked > 0 || renamed > 0) {
           return JSON.stringify({
             success: true,
             relinkedCount: relinked,
             renamedCount: renamed,
+            items: touched,
             message: (relinked > 0 ? relinked + " piste(s) reliée(s) au master WAV" : "Pistes déjà reliées au WAV") + (renamed > 0 ? ", " + renamed + " élément(s) renommé(s) en .wav dans le projet" : "") + "."
           });
         } else if (pendingFiles.length === 0) {
@@ -4193,9 +4277,28 @@ export const AudioConverter: React.FC<AudioConverterProps> = ({
   const [isRelinking, setIsRelinking] = useState(false);
   const [relinkStatusMessage, setRelinkStatusMessage] = useState<{ isError?: boolean; message: string } | null>(null);
   const [progressMessage, setProgressMessage] = useState<string | null>(null);
+  // derniers fichiers convertis : listés sous le message et mis en surbrillance dans le chutier
+  const [convertedItems, setConvertedItems] = useState<ConvertedProjectItem[]>([]);
+  const [selectInfo, setSelectInfo] = useState<string | null>(null);
 
   const insidePremiere = isRunningInPremiere();
   const isLoopRunningRef = useRef(false);
+
+  const highlightInBin = async (items: ConvertedProjectItem[]) => {
+    if (items.length === 0 || !insidePremiere) return;
+    const res = await selectProjectItemsInPremiere(items.map((i) => i.id)).catch(() => null);
+    if (!res || !res.success) setSelectInfo(`Sélection dans le chutier impossible${res?.error ? ` : ${res.error}` : ''}.`);
+    else if (items.length > 1 && res.selected !== undefined && res.selected >= 0 && res.selected < items.length)
+      setSelectInfo(`Premiere ne garde que le dernier élément sélectionné : cliquez sur un fichier pour le retrouver.`);
+    else setSelectInfo(null);
+  };
+  /** Après une conversion : liste des fichiers (remplace la précédente) et surbrillance dans le chutier */
+  const showConverted = (res: any) => {
+    const items: ConvertedProjectItem[] = Array.isArray(res?.items) ? res.items : [];
+    if (items.length === 0) return;
+    setConvertedItems(items);
+    highlightInBin(items);
+  };
   // Fichiers dont la conversion a échoué : la boucle auto ne les retente pas en boucle
   const failedPathsRef = useRef<Set<string>>(new Set());
   const settingsRef = useRef(audioSettings);
@@ -4239,6 +4342,7 @@ export const AudioConverter: React.FC<AudioConverterProps> = ({
             setProgressMessage(null);
             if (tr.convertedCount > 0 || tr.relinkedCount > 0 || tr.renamedCount > 0 || tr.failures?.length > 0) {
               setRelinkStatusMessage({ isError: tr.failures?.length > 0 && tr.relinkedCount === 0, message: describeTranscodeResult(tr) });
+              showConverted(tr);
               const updated = await scanPremiereProjectMemory();
               if (!isCancelled && updated?.success) setScanResult(updated);
             }
@@ -4280,6 +4384,7 @@ export const AudioConverter: React.FC<AudioConverterProps> = ({
           isError: res.failures.length > 0 && res.relinkedCount === 0,
           message: describeTranscodeResult(res),
         });
+        showConverted(res);
         const updated = await scanPremiereProjectMemory();
         if (updated?.success) setScanResult(updated);
       } else {
@@ -4321,6 +4426,45 @@ export const AudioConverter: React.FC<AudioConverterProps> = ({
         {progressMessage && <StatusMessage busy message={progressMessage} />}
         {relinkStatusMessage && (
           <StatusMessage isError={relinkStatusMessage.isError} message={relinkStatusMessage.message} />
+        )}
+
+        {convertedItems.length > 0 && (
+          <div className="rounded-lg border border-white/10 bg-zinc-900/60 overflow-hidden">
+            <div className="px-2.5 py-1.5 border-b border-white/10 flex items-center justify-between gap-2 text-[11px]">
+              <span className="text-zinc-400">Fichier(s) converti(s)</span>
+              <span className="flex items-center gap-2">
+                {convertedItems.length > 1 && (
+                  <button onClick={() => highlightInBin(convertedItems)} className="text-emerald-300 hover:text-emerald-200 underline cursor-pointer">
+                    Tout sélectionner
+                  </button>
+                )}
+                <button onClick={() => { setConvertedItems([]); setSelectInfo(null); }} className="text-zinc-500 hover:text-zinc-200 cursor-pointer" title="Effacer la liste">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            </div>
+            <div className="divide-y divide-white/5">
+              {convertedItems.map((it) => (
+                <button
+                  key={it.id}
+                  onClick={() => highlightInBin([it])}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left hover:bg-white/[0.04] transition cursor-pointer"
+                  title="Sélectionner dans le chutier de Premiere"
+                >
+                  <FileAudio className="w-3.5 h-3.5 text-emerald-300 flex-shrink-0" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-xs text-zinc-100 truncate">{it.name}</span>
+                    <span className="block text-[10px] text-zinc-500 truncate">
+                      {it.bin || 'Racine du projet'}
+                      {it.from && it.from !== it.name ? ` · avant : ${it.from}` : ''}
+                    </span>
+                  </span>
+                  <FolderOpen className="w-3.5 h-3.5 text-zinc-500 flex-shrink-0" />
+                </button>
+              ))}
+            </div>
+            {selectInfo && <div className="px-2.5 py-1.5 border-t border-white/10 text-[10px] text-zinc-500">{selectInfo}</div>}
+          </div>
         )}
 
         <PrimaryButton onClick={handleManualRelink} disabled={isRelinking} className="w-full">
@@ -8396,8 +8540,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onUpdateDeliveryPresets,
   initialTab,
 }) => {
-  const [activeTab, setActiveTab] = useState<SettingsTab>('audio');
-  useEffect(() => {
+  const [activeTab, setActiveTab] = useState<SettingsTab>(() => initialTab || 'audio');
+  // onglet demandé appliqué avant l'affichage (sinon l'onglet Audio apparaît un instant)
+  React.useLayoutEffect(() => {
     if (isOpen && initialTab) setActiveTab(initialTab);
   }, [isOpen, initialTab]);
   const [newPresetName, setNewPresetName] = useState('');
@@ -9618,6 +9763,49 @@ const ExpandableText: React.FC<{ text: string; className?: string }> = ({ text, 
   );
 };
 
+/**
+ * Poignée large sous une zone de texte : glisser vers le bas / le haut pour l'agrandir ou la réduire,
+ * double-clic pour basculer entre taille compacte et grande.
+ */
+const ResizeGrip: React.FC<{ height: number; onChange: (h: number) => void; min: number; max: number; compact: number; tall: number }> = ({
+  height,
+  onChange,
+  min,
+  max,
+  compact,
+  tall,
+}) => {
+  const drag = useRef<{ y: number; h: number } | null>(null);
+  const clamp = (h: number) => Math.round(Math.max(min, Math.min(max, h)));
+  return (
+    <div
+      role="separator"
+      aria-orientation="horizontal"
+      title="Glisser pour agrandir ou réduire · double-clic : grande / petite taille"
+      onPointerDown={(e) => {
+        drag.current = { y: e.clientY, h: height };
+        try {
+          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        } catch {}
+      }}
+      onPointerMove={(e) => drag.current && onChange(clamp(drag.current.h + e.clientY - drag.current.y))}
+      onPointerUp={() => (drag.current = null)}
+      onPointerCancel={() => (drag.current = null)}
+      onDoubleClick={() => onChange(height < (compact + tall) / 2 ? tall : compact)}
+      className="group flex justify-center py-1 cursor-ns-resize select-none touch-none"
+    >
+      <span className="flex items-center justify-center px-4 py-0.5 rounded-full text-zinc-400 group-hover:text-cream-300 group-hover:bg-white/5 transition">
+        {/* chevron haut, trait, chevron bas : même largeur, même épaisseur, espacements égaux (grille 16 × 16) */}
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M4.5 5L8 2l3.5 3" />
+          <path d="M4 8h8" />
+          <path d="M4.5 11L8 14l3.5-3" />
+        </svg>
+      </span>
+    </div>
+  );
+};
+
 /** Interrupteur compact ON/OFF */
 const ToggleSwitch: React.FC<{ on: boolean; onChange: (on: boolean) => void; title?: string }> = ({ on, onChange, title }) => (
   <button
@@ -9691,6 +9879,8 @@ const REVIEW_SYNC_MIN_SCORE = 0.6;
 export interface ReviewSyncSettings {
   enabled: boolean;
   folder: string;
+  /** version à importer : 'latest' (la plus récente trouvée pour le projet) ou une version précise (« V2 ») */
+  version?: string;
 }
 
 function defaultDownloadsFolder(): string {
@@ -9762,6 +9952,9 @@ function writeStored(key: string, value: unknown) {
 
 export const ReviewMarkersHub: React.FC<ReviewMarkersHubProps> = ({ currentFrameRate, categories, onJumpToTimecode }) => {
   const [rawText, setRawText] = useState<string>(() => readStored(REVIEW_STORAGE_KEYS.draft, ''));
+  // hauteur de la zone de saisie, réglée avec la poignée (mémorisée)
+  const [draftHeight, setDraftHeight] = useState<number>(() => readStored<number>('cutflow.reviewDraftHeight', 120));
+  useEffect(() => writeStored('cutflow.reviewDraftHeight', draftHeight), [draftHeight]);
   const [screenshotDataUrl, setScreenshotDataUrl] = useState<string | null>(null);
   const [isAiProcessing, setIsAiProcessing] = useState<boolean>(false);
   const [aiError, setAiError] = useState<string | null>(null);
@@ -9796,6 +9989,10 @@ export const ReviewMarkersHub: React.FC<ReviewMarkersHubProps> = ({ currentFrame
   const [statusMessage, setStatusMessage] = useState<{ message: string; isError?: boolean } | null>(null);
 
   const [sync, setSync] = useState<ReviewSyncSettings>(() => ({ enabled: false, folder: defaultDownloadsFolder(), ...readStored<Partial<ReviewSyncSettings>>(REVIEW_SYNC_KEY, {}) }));
+  const syncRef = useRef(sync);
+  syncRef.current = sync;
+  // versions trouvées dans les noms des CSV du dossier (menu « Version » de la synchro)
+  const [folderVersions, setFolderVersions] = useState<string[]>([]);
   const [syncInfo, setSyncInfo] = useState<{ message: string; isError?: boolean } | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   useEffect(() => writeStored(REVIEW_SYNC_KEY, sync), [sync]);
@@ -10127,15 +10324,26 @@ export const ReviewMarkersHub: React.FC<ReviewMarkersHubProps> = ({ currentFrame
     writeStored(REVIEW_SYNC_SEEN_KEY, seen);
   };
 
+  useEffect(() => {
+    setFolderVersions(Array.from(new Set(listCsv(sync.folder).map((f) => detectVersion(f.name)).filter(Boolean) as string[])).sort((a, b) => versionRank(a) - versionRank(b)));
+  }, [sync.folder]);
+
   const syncBusyRef = useRef(false);
   /** Importe les nouveaux CSV (ou, si force, le plus récent qui correspond au projet) et les pose sur la timeline */
   const runSync = async (folder: string, force: boolean) => {
     if (syncBusyRef.current || !isRunningInPremiere()) return;
     const files = listCsv(folder).sort((a, b) => a.mtime - b.mtime);
+    setFolderVersions(Array.from(new Set(files.map((f) => detectVersion(f.name)).filter(Boolean) as string[])).sort((a, b) => versionRank(a) - versionRank(b)));
+    const wanted = syncRef.current.version && syncRef.current.version !== 'latest' ? syncRef.current.version : null;
     const seen = readStored<Record<string, number>>(REVIEW_SYNC_SEEN_KEY, {});
-    const candidates = force ? [...files].reverse() : files.filter((f) => seen[f.path] !== f.mtime);
+    // « maintenant » : version choisie, sinon la plus récente (V3 avant V2), puis le fichier le plus récent
+    const candidates = force
+      ? [...files]
+          .filter((f) => !wanted || detectVersion(f.name) === wanted)
+          .sort((a, b) => versionRank(detectVersion(b.name) || undefined) - versionRank(detectVersion(a.name) || undefined) || b.mtime - a.mtime)
+      : files.filter((f) => seen[f.path] !== f.mtime);
     if (candidates.length === 0) {
-      if (force) setSyncInfo({ isError: true, message: `Aucun CSV dans ${folder}.` });
+      if (force) setSyncInfo({ isError: true, message: wanted ? `Aucun CSV de la ${wanted} dans ${folder}.` : `Aucun CSV dans ${folder}.` });
       return;
     }
     syncBusyRef.current = true;
@@ -10152,9 +10360,20 @@ export const ReviewMarkersHub: React.FC<ReviewMarkersHubProps> = ({ currentFrame
           continue;
         }
         if (!looksLikeReviewCSV(text)) continue;
-        // version : un CSV « V1 » n'est jamais posé sur une séquence « V2 »
+        // version : celle choisie dans le menu ; sinon jamais un CSV « V1 » sur une séquence « V2 », et pas une
+        // version plus ancienne que la plus récente déposée pour ce projet
         const csvVersion = detectVersion(f.name);
-        const targetVersion = detectVersion(names.sequence) || detectVersion(names.project);
+        const targetVersion = wanted || detectVersion(names.sequence) || detectVersion(names.project);
+        if (wanted && csvVersion !== wanted) continue;
+        if (!wanted && !targetVersion && csvVersion) {
+          const newest = files
+            .filter((o) => Math.max(nameSimilarity(o.name, names.project), nameSimilarity(o.name, names.sequence)) >= REVIEW_SYNC_MIN_SCORE)
+            .reduce((m, o) => Math.max(m, versionRank(detectVersion(o.name) || undefined)), -1);
+          if (versionRank(csvVersion) < newest) {
+            if (!force) setSyncInfo({ message: `${f.name} ignoré : une version plus récente (V${newest}) est dans le dossier.` });
+            continue;
+          }
+        }
         if (csvVersion && targetVersion && csvVersion !== targetVersion) {
           if (!force || f === candidates[candidates.length - 1])
             setSyncInfo({ isError: true, message: `${f.name} ignoré : retours de la ${csvVersion}, la séquence active est en ${targetVersion}.` });
@@ -10400,13 +10619,16 @@ export const ReviewMarkersHub: React.FC<ReviewMarkersHubProps> = ({ currentFrame
     <div className="space-y-3">
       {/* Saisie unique : texte collé, import CSV ou capture */}
       <section className="rounded-2xl border border-white/10 bg-zinc-900/50 p-4 space-y-3">
-        <textarea
-          value={rawText}
-          onChange={(e) => setRawText(e.target.value)}
-          rows={5}
-          className="w-full bg-zinc-950/70 border border-white/10 rounded-xl p-3 text-xs font-mono text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-emerald-400 transition resize-y"
-          placeholder={"Collez les retours du client (mail, WhatsApp, Slack…) :\n01:14 couper l'hésitation avant la phrase\n02:25 - 02:35 baisser la musique de 3 dB\n1m24s corriger la faute dans le titre"}
-        />
+        <div>
+          <textarea
+            value={rawText}
+            onChange={(e) => setRawText(e.target.value)}
+            style={{ height: draftHeight }}
+            className="w-full bg-zinc-950/70 border border-white/10 rounded-xl p-3 text-xs font-mono text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-emerald-400 transition-colors resize-none block"
+            placeholder={"Collez les retours du client (mail, WhatsApp, Slack…) :\n01:14 couper l'hésitation avant la phrase\n02:25 - 02:35 baisser la musique de 3 dB\n1m24s corriger la faute dans le titre"}
+          />
+          <ResizeGrip height={draftHeight} onChange={setDraftHeight} min={70} max={700} compact={120} tall={360} />
+        </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-1.5">
@@ -10456,12 +10678,30 @@ export const ReviewMarkersHub: React.FC<ReviewMarkersHubProps> = ({ currentFrame
             Choisir…
           </button>
         </div>
+        <div className="flex items-center gap-2 text-[11px] text-zinc-400">
+          Version importée
+          <select
+            value={sync.version && sync.version !== 'latest' ? sync.version : 'latest'}
+            onChange={(e) => setSync({ ...sync, version: e.target.value })}
+            className="bg-zinc-950 border border-white/10 rounded-full px-2.5 py-1 text-[11px] font-semibold text-zinc-200 focus:outline-none focus:border-emerald-400 cursor-pointer"
+            title="La plus récente : V3 plutôt que V2 quand les deux CSV sont dans le dossier"
+          >
+            <option value="latest">La plus récente</option>
+            {Array.from(new Set([...folderVersions, ...(sync.version && sync.version !== 'latest' ? [sync.version] : [])]))
+              .sort((a, b) => versionRank(a) - versionRank(b))
+              .map((v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
+          </select>
+        </div>
         {sync.enabled && (
           <button
             onClick={() => runSync(sync.folder, true)}
             disabled={isSyncing}
             className="text-[11px] text-emerald-300 hover:text-emerald-200 underline cursor-pointer disabled:opacity-50"
-            title="Importe le CSV le plus récent du dossier qui correspond au projet"
+            title="Importe le CSV du projet dans la version choisie (par défaut la plus récente)"
           >
             Synchroniser maintenant
           </button>
@@ -10788,6 +11028,18 @@ export default function App() {
     setSettingsTab(tab);
     setIsSettingsOpen(true);
   };
+
+  // Ctrl+Espace → console d'effets : la fenêtre cachée démarrée avec Premiere tient déjà le raccourci ; le panneau
+  // le lance aussi, au cas où Premiere n'aurait pas démarré cette fenêtre (une seule instance active, voir le script)
+  useEffect(() => {
+    if (!isRunningInPremiere()) return;
+    const start = () => (window as any).CypherHotkey?.start();
+    if ((window as any).CypherHotkey) return void start();
+    const tag = document.createElement('script');
+    tag.src = './vendor/cypher-hotkey.js';
+    tag.onload = start;
+    document.head.appendChild(tag);
+  }, []);
   const [deliveryPresets, setDeliveryPresets] = useState<DeliveryPreset[]>(loadDeliveryPresets);
   useEffect(() => saveDeliveryPresets(deliveryPresets), [deliveryPresets]);
   const [currentProjectName, setCurrentProjectName] = useState<string>('');
@@ -10883,7 +11135,7 @@ export default function App() {
           {mounted('audio') && (
             <AudioConverter
               audioSettings={audioSettings}
-              onOpenSettings={() => openSettings()}
+              onOpenSettings={() => openSettings('audio')}
             />
           )}
         </div>
@@ -10896,7 +11148,7 @@ export default function App() {
           {mounted('binning') && (
             <AutoBinning
               rules={binRules}
-              onOpenSettings={() => openSettings()}
+              onOpenSettings={() => openSettings('binning')}
             />
           )}
         </div>
@@ -11099,6 +11351,7 @@ function CheckerApp() {
     </div>
   );
 }
+
 
 
 // ==================== mount ====================

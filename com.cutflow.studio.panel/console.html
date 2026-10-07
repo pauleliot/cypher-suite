@@ -1,0 +1,58 @@
+<!doctype html>
+<!-- Cypher Console : console d'effets (Ctrl+Espace / ⌥Espace). Page légère, sans Node ni React ni app.js, pour s'ouvrir vite
+     (le thème arrive de la fenêtre cachée de Cypher par un événement CEP).
+     Logique dans vendor/cypher-console.js ; styles = vendor/cypher.css (Tailwind précompilé, voir tailwind.config). -->
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Cypher Console</title>
+    <link href="./vendor/fonts/urbanist.css" rel="stylesheet" />
+    <link href="./vendor/cypher.css" rel="stylesheet" />
+    <style>
+      :root {
+        --ink: 12 19 34;
+        --zinc-50: 247 245 239; --zinc-100: 239 236 228; --zinc-200: 221 224 232; --zinc-300: 185 191 205;
+        --zinc-400: 142 151 171; --zinc-500: 103 112 135; --zinc-600: 72 82 106; --zinc-700: 50 60 85;
+        --zinc-800: 34 44 68; --zinc-900: 23 32 54; --zinc-950: 15 23 41;
+        --accent-50: 240 244 255; --accent-100: 225 233 255; --accent-200: 199 213 255; --accent-300: 169 191 255;
+        --accent-400: 142 168 247; --accent-500: 114 144 234; --accent-600: 88 116 212; --accent-700: 71 96 181;
+        --accent-800: 58 78 144; --accent-900: 47 63 112; --accent-950: 27 37 68;
+        --cream-100: 255 246 220; --cream-200: 253 239 196; --cream-300: 251 230 166; --cream-400: 246 217 133;
+        --cream-500: 234 200 106;
+      }
+      html, body { margin: 0; height: 100%; overflow: hidden; background: rgb(var(--ink)); color: rgb(var(--zinc-100));
+        font-family: Urbanist, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; user-select: none; }
+      input { user-select: text; }
+      ::-webkit-scrollbar { width: 6px; }
+      ::-webkit-scrollbar-track { background: rgb(var(--zinc-950)); }
+      ::-webkit-scrollbar-thumb { background: rgb(var(--zinc-700)); border-radius: 3px; }
+    </style>
+  </head>
+  <body>
+    <div class="h-screen flex flex-col bg-ink text-zinc-100 antialiased">
+      <div class="p-3 pb-2 space-y-2 border-b border-white/10">
+        <div class="flex items-center gap-2 bg-zinc-950 border border-white/10 rounded-xl px-3 focus-within:border-emerald-400 transition-colors">
+          <svg class="w-4 h-4 text-zinc-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+          <input id="q" placeholder="Effet à appliquer… (ex. flou, lumetri, deesser)" spellcheck="false" autofocus
+            class="flex-1 min-w-0 bg-transparent py-2.5 text-sm text-zinc-50 placeholder:text-zinc-500 focus:outline-none select-text" />
+          <svg id="spin" style="display: none" class="w-3.5 h-3.5 text-zinc-500 animate-pulse flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></svg>
+        </div>
+        <div class="flex items-center gap-1">
+          <button data-kind="all">Tout</button>
+          <button data-kind="video">Vidéo</button>
+          <button data-kind="audio">Audio</button>
+          <span id="count" class="ml-auto text-[10px] text-zinc-500"></span>
+        </div>
+      </div>
+      <div id="list" class="flex-1 overflow-y-auto py-1"></div>
+      <div class="px-3 py-2 border-t border-white/10 text-[10px] text-zinc-500 flex items-center gap-2">
+        <span id="foot" class="truncate"></span>
+      </div>
+    </div>
+    <script>
+      // pas de menu du navigateur au clic droit (sauf dans le champ de recherche)
+      document.addEventListener('contextmenu', function (e) { if (!e.target || e.target.tagName !== 'INPUT') e.preventDefault(); });
+    </script>
+    <script src="./vendor/cypher-console.js"></script>
+  </body>
+</html>

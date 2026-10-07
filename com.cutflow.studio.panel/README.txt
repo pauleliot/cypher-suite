@@ -37,6 +37,14 @@ Outils inclus :
                   à côté de chaque fichier + récap CSV), et consolide le projet.
                   Existe aussi en application autonome : Cypher Checker.
 
+Cypher Console (façon FX Console) : Ctrl+Espace (Windows) ou ⌥Espace (Mac) quand
+Premiere est au premier plan ouvre une petite fenêtre : tapez le nom d'un effet
+(vidéo ou audio, plugins compris), Entrée l'applique aux clips sélectionnés.
+Maj+Entrée : sans fermer · Tab : vidéo/audio · Ctrl+D : favori · Échap : fermer.
+Mac : autorisez Premiere (ou osascript) dans Réglages Système > Confidentialité et
+sécurité > Accessibilité ; sinon, donnez un raccourci à « Cypher Console » dans
+Premiere Pro > Raccourcis clavier. Aussi dans Fenêtre > Extensions > Cypher Console.
+
 Réglages > Configuration : les profils regroupent tous les réglages
 (chutiers, marqueurs, normes, apparence…) et s'exportent en un seul code
 pour configurer un poste de l'équipe.

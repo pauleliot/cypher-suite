@@ -2,6 +2,8 @@
 <ExtensionManifest Version="10.0" ExtensionBundleId="com.cypher.studio.panel" ExtensionBundleVersion="2.9.0" ExtensionBundleName="Cypher" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <ExtensionList>
     <Extension Id="com.cypher.studio.panel" Version="2.9.0" />
+    <Extension Id="com.cypher.studio.console" Version="2.9.0" />
+    <Extension Id="com.cypher.studio.hotkey" Version="2.9.0" />
   </ExtensionList>
   <ExecutionEnvironment>
     <HostList>
@@ -46,6 +48,60 @@
               <Height>1600</Height>
               <Width>1200</Width>
             </MaxSize>
+          </Geometry>
+        </UI>
+      </DispatchInfo>
+    </Extension>
+    <!-- Cypher Console : console d'effets façon FX Console, fenêtre flottante ouverte par Ctrl+Espace -->
+    <Extension Id="com.cypher.studio.console">
+      <DispatchInfo>
+        <Resources>
+          <MainPath>./console.html</MainPath>
+          <!-- ni Node ni script ExtendScript chargé au démarrage : la fenêtre s'ouvre plus vite -->
+        </Resources>
+        <Lifecycle>
+          <AutoVisible>true</AutoVisible>
+        </Lifecycle>
+        <UI>
+          <Type>Modeless</Type>
+          <Menu>Cypher Console</Menu>
+          <Geometry>
+            <Size>
+              <Height>440</Height>
+              <Width>560</Width>
+            </Size>
+            <MinSize>
+              <Height>260</Height>
+              <Width>380</Width>
+            </MinSize>
+          </Geometry>
+        </UI>
+      </DispatchInfo>
+    </Extension>
+    <!-- Fenêtre invisible démarrée avec Premiere : tient le raccourci Ctrl+Espace (Windows) -->
+    <Extension Id="com.cypher.studio.hotkey">
+      <DispatchInfo>
+        <Resources>
+          <MainPath>./hotkey.html</MainPath>
+          <CEFCommandLine>
+            <Parameter>--enable-nodejs</Parameter>
+            <Parameter>--allow-file-access</Parameter>
+          </CEFCommandLine>
+        </Resources>
+        <Lifecycle>
+          <AutoVisible>false</AutoVisible>
+          <StartOn>
+            <Event>com.adobe.csxs.events.ApplicationActivate</Event>
+            <Event>applicationActivate</Event>
+          </StartOn>
+        </Lifecycle>
+        <UI>
+          <Type>Custom</Type>
+          <Geometry>
+            <Size>
+              <Height>1</Height>
+              <Width>1</Width>
+            </Size>
           </Geometry>
         </UI>
       </DispatchInfo>

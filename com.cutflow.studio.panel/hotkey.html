@@ -1,0 +1,22 @@
+<!doctype html>
+<!-- Cypher : fenêtre invisible démarrée avec Premiere, elle tient le raccourci Ctrl+Espace de la console d'effets -->
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Cypher Raccourci</title>
+    <script>
+      if (typeof require === 'function' && !window.cep_node) {
+        window.cep_node = { require: require, process: typeof process !== 'undefined' ? process : undefined, Buffer: typeof Buffer !== 'undefined' ? Buffer : undefined };
+      }
+      try { window.module = undefined; window.exports = undefined; window.require = undefined; } catch (e) {}
+    </script>
+    <script src="./CSInterface.js"></script>
+    <script src="./vendor/suite-theme.js"></script>
+    <script src="./vendor/cypher-hotkey.js"></script>
+  </head>
+  <body>
+    <script>
+      if (window.CypherHotkey) window.CypherHotkey.start();
+    </script>
+  </body>
+</html>
