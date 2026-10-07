@@ -93,13 +93,20 @@
 
   // La console tourne sans Node (ouverture plus rapide) : elle demande le thème partagé au démarrage, la fenêtre
   // cachée (ou le panneau Cypher) le lit (suite-theme.js) et le lui renvoie par un événement CEP
+  // événement CEP vers les autres fenêtres de Premiere : sans l'identifiant de l'application (« PPRO ») et celui de
+  // la fenêtre, Premiere ne le transmet pas
+  function sendCepEvent(type, data) {
+    var c = window.__adobe_cep__;
+    if (!c || !c.dispatchEvent) return;
+    var appId = 'PPRO', ext = '';
+    try { appId = JSON.parse(c.getHostEnvironment()).appId || appId; } catch (e) {}
+    try { ext = c.getExtensionId(); } catch (e) {}
+    c.dispatchEvent({ type: type, scope: 'APPLICATION', appId: appId, extensionId: ext, data: data });
+  }
   function sendTheme() {
-    var cep = window.__adobe_cep__;
-    if (!cep || !cep.dispatchEvent) return;
     try {
       var shared = window.SuiteTheme && window.SuiteTheme.read();
-      if (!shared || !shared.theme) return;
-      cep.dispatchEvent({ type: 'com.cypher.console.theme', scope: 'APPLICATION', appId: '', extensionId: '', data: JSON.stringify(shared.theme) });
+      if (shared && shared.theme) sendCepEvent('com.cypher.console.theme', JSON.stringify(shared.theme));
     } catch (e) {}
   }
   try {

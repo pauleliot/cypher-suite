@@ -66,6 +66,16 @@
       set('cream-' + k, mix(pr, p[k][0], p[k][1]));
     });
   }
+  // événement CEP vers les autres fenêtres de Premiere : sans l'identifiant de l'application (« PPRO ») et celui de
+  // la fenêtre, Premiere ne le transmet pas
+  function sendCepEvent(type, data) {
+    var c = window.__adobe_cep__;
+    if (!c || !c.dispatchEvent) return;
+    var appId = 'PPRO', ext = '';
+    try { appId = JSON.parse(c.getHostEnvironment()).appId || appId; } catch (e) {}
+    try { ext = c.getExtensionId(); } catch (e) {}
+    c.dispatchEvent({ type: type, scope: 'APPLICATION', appId: appId, extensionId: ext, data: data });
+  }
   // la console n'a pas Node : le thème vient de la fenêtre cachée de Cypher (événement CEP), et le dernier reçu est
   // gardé pour s'afficher tout de suite aux couleurs du thème à l'ouverture suivante
   applyTheme(read('cypher.console.theme', null));
@@ -82,7 +92,7 @@
           }
         } catch (e) {}
       });
-      cep.dispatchEvent({ type: 'com.cypher.console.ready', scope: 'APPLICATION', appId: '', extensionId: '', data: '' });
+      sendCepEvent('com.cypher.console.ready', '');
     } catch (e) {}
   }
 
