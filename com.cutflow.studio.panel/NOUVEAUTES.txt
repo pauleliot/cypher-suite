@@ -1,3 +1,8 @@
+2.10.1
+- Retours : import des CSV Vimeo corrigé (plus de fausse réponse « -- » sous chaque retour, apostrophes et guillemets propres, version lue dans « Video Version », auteur de chaque réponse).
+- macOS : l'installeur affiche une fenêtre de progression qui reste ouverte jusqu'au résultat.
+- macOS : ⌥Espace explique quelle autorisation « Accessibilité » activer, ouvre les réglages et démarre dès qu'elle est donnée (journal : ~/Library/Logs/Cypher-raccourci.log).
+
 2.10.0
 - Cypher Console (façon FX Console) : Ctrl+Espace (Windows) ou ⌥Espace (Mac) dans Premiere ouvre une petite fenêtre ; tapez le nom d'un effet vidéo ou audio, Entrée l'applique aux clips sélectionnés. Favoris (Ctrl+D) et derniers effets utilisés.
 - Retours : réponses Vimeo regroupées sous leur commentaire (plus de retour posé plusieurs fois), versions V1 / V2 reconnues avec filtre, choix de la version importée par la synchro Vimeo (la plus récente par défaut).

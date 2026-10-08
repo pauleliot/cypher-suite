@@ -211,6 +211,14 @@ LAUNCHER = r"""#!/bin/bash
 # Installer {name} : installe le panneau dans Premiere Pro avec des fenêtres macOS (sans Terminal)
 RES="$(cd "$(dirname "$0")/../Resources" && pwd)"
 NAME="{name}"
+LOG="$HOME/Library/Logs/$NAME-installation.log"
+mkdir -p "$HOME/Library/Logs"
+
+# fenêtre d'installation (progression, étape en cours, résultat) : installer-ui.js
+UI_OUT="$(/usr/bin/osascript -l JavaScript "$RES/installer-ui.js" "$NAME" "{version}" "{menu}" "$RES/panel/Installer $NAME.command" "$LOG" 2>"$LOG.ui")"
+case "$UI_OUT" in *STARTED*|*CANCELLED*) exit 0 ;; esac
+
+# repli si la fenêtre n'a pas pu s'afficher : boîtes de dialogue simples
 ask() {{ osascript -e "display dialog \"$1\" buttons {{\"Annuler\", \"$2\"}} default button \"$2\" with title \"$NAME\" with icon note" >/dev/null 2>&1; }}
 msg() {{ osascript -e "display dialog \"$1\" buttons {{\"OK\"}} default button \"OK\" with title \"$NAME\" with icon $2" >/dev/null 2>&1; }}
 
@@ -219,8 +227,6 @@ while pgrep -qf "Adobe Premiere Pro"; do
   ask "Premiere Pro est ouvert : fermez-le, puis cliquez sur Continuer." "Continuer" || exit 0
 done
 osascript -e "display notification \"{busy}\" with title \"$NAME\"" >/dev/null 2>&1
-LOG="$HOME/Library/Logs/$NAME-installation.log"
-mkdir -p "$HOME/Library/Logs"
 SUITE_AUTO=1 /bin/bash "$RES/panel/Installer $NAME.command" </dev/null >"$LOG" 2>&1
 if [ $? -eq 0 ]; then
   msg "$NAME est installé.\n\nOuvrez Premiere Pro, puis : Fenêtre > Extensions > {menu}." note
@@ -228,6 +234,179 @@ else
   msg "L'installation n'a pas abouti.\n\nDétails : $LOG" caution
 fi
 """
+# Fenêtre de l'installeur macOS (JavaScript for Automation + Cocoa, livrés avec macOS) : reste affichée pendant toute
+# l'installation (barre de progression, étape lue dans le journal du script), puis affiche le résultat avec « Fermer ».
+# Écrit « STARTED » (ou « CANCELLED ») sur la sortie : sinon, le lanceur repasse aux boîtes de dialogue simples.
+# Arguments : nom, version, menu Premiere, script « Installer <Nom>.command », journal.
+INSTALLER_UI = r"""ObjC.import('Cocoa');
+
+function out(text) {
+  $.NSFileHandle.fileHandleWithStandardOutput.writeData($(text + '\n').dataUsingEncoding($.NSUTF8StringEncoding));
+}
+
+function run(argv) {
+  var name = argv[0], version = argv[1], menu = argv[2], script = argv[3], logPath = argv[4];
+  var sa = Application.currentApplication();
+  sa.includeStandardAdditions = true;
+  var app = $.NSApplication.sharedApplication;
+  app.setActivationPolicy($.NSApplicationActivationPolicyRegular);
+  app.finishLaunching;
+  app.activateIgnoringOtherApps(true);
+
+  function ask(text, ok) {
+    try {
+      sa.activate();
+      sa.displayDialog(text, { withTitle: name, buttons: ['Annuler', ok], defaultButton: ok, cancelButton: 'Annuler', withIcon: 'note' });
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+  if (!ask('Installer ' + name + ' ' + version + ' dans Premiere Pro ?', 'Installer')) return out('CANCELLED');
+  while (sa.doShellScript('pgrep -qf "Adobe Premiere Pro" && echo 1 || echo 0') === '1') {
+    if (!ask('Premiere Pro est ouvert : fermez-le, puis cliquez sur Continuer.', 'Continuer')) return out('CANCELLED');
+  }
+
+  // si la fenêtre échoue en route : l'installation lancée va à son terme, résultat en boîte de dialogue ;
+  // avant son lancement : rien n'est écrit, le lanceur repasse aux boîtes de dialogue simples
+  var task = null, win = null;
+  try {
+    // ---- fenêtre ----
+    var W = 480, H = 176;
+    win = $.NSWindow.alloc.initWithContentRectStyleMaskBackingDefer($.NSMakeRect(0, 0, W, H), $.NSWindowStyleMaskTitled, $.NSBackingStoreBuffered, false);
+    win.title = 'Installer ' + name + ' ' + version;
+    win.releasedWhenClosed = false;
+    var view = win.contentView;
+    var icon = $.NSImageView.alloc.initWithFrame($.NSMakeRect(20, H - 84, 64, 64));
+    // icône de l'installeur (Resources/AppIcon.icns, à côté du dossier panel/), aussi dans le Dock
+    var img = $.NSImage.alloc.initWithContentsOfFile(script.replace(/\/panel\/[^\/]*$/, '/AppIcon.icns'));
+    if (!img.isNil()) app.applicationIconImage = img;
+    icon.image = app.applicationIconImage;
+    view.addSubview(icon);
+    function label(y, h, size, bold) {
+      var l = $.NSTextField.labelWithString('');
+      l.frame = $.NSMakeRect(100, y, W - 120, h);
+      l.font = bold ? $.NSFont.boldSystemFontOfSize(size) : $.NSFont.systemFontOfSize(size);
+      l.lineBreakMode = $.NSLineBreakByTruncatingTail;
+      view.addSubview(l);
+      return l;
+    }
+    var title = label(H - 46, 22, 15, true);
+    var detail = label(H - 70, 18, 11, false);
+    detail.textColor = $.NSColor.secondaryLabelColor;
+    title.stringValue = 'Installation de ' + name + ' en cours…';
+    detail.stringValue = 'Préparation…';
+    var bar = $.NSProgressIndicator.alloc.initWithFrame($.NSMakeRect(100, H - 104, W - 120, 20));
+    bar.indeterminate = true;
+    bar.usesThreadedAnimation = true;
+    view.addSubview(bar);
+    bar.startAnimation($());
+    var hint = $.NSTextField.wrappingLabelWithString('');
+    hint.frame = $.NSMakeRect(100, 16, W - 120, 32);
+    hint.font = $.NSFont.systemFontOfSize(11);
+    view.addSubview(hint);
+    hint.textColor = $.NSColor.secondaryLabelColor;
+    hint.stringValue = 'Gardez cette fenêtre ouverte : elle se met à jour toute seule (téléchargement des outils : quelques minutes).';
+    win.center;
+    win.makeKeyAndOrderFront($());
+    app.activateIgnoringOtherApps(true);
+
+    var anyEvent = $.NSEventMaskAny || $.NSAnyEventMask || 0xffffffff;
+    function pump(seconds) {
+      var until = $.NSDate.dateWithTimeIntervalSinceNow(seconds);
+      for (;;) {
+        var ev = app.nextEventMatchingMaskUntilDateInModeDequeue(anyEvent, until, $.NSDefaultRunLoopMode, true);
+        if (ev.isNil()) break;
+        app.sendEvent(ev);
+      }
+      app.updateWindows;
+    }
+
+    // ---- installation (script habituel du panneau, en mode automatique) ----
+    task = $.NSTask.alloc.init;
+    task.launchPath = '/bin/bash';
+    task.arguments = $(['-c', 'SUITE_AUTO=1 /bin/bash "$0" </dev/null >"$1" 2>&1', script, logPath]);
+    task.launch;
+    out('STARTED');
+
+    var step = 0;
+    while (task.isRunning) {
+      pump(0.25);
+      var text = '';
+      try {
+        text = ObjC.unwrap($.NSString.stringWithContentsOfFileEncodingError(logPath, $.NSUTF8StringEncoding, $())) || '';
+      } catch (e) {}
+      var lines = text.replace(/\x1b\[[0-9;]*m/g, '').split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean);
+      for (var i = lines.length - 1; i >= 0; i--) {
+        var m = lines[i].match(/^\[(\d+)\/(\d+)\]\s*(.+)$/);
+        if (!m) continue;
+        if (+m[1] !== step) {
+          step = +m[1];
+          if (bar.indeterminate) {
+            bar.stopAnimation($());
+            bar.indeterminate = false;
+            bar.minValue = 0;
+            bar.maxValue = +m[2];
+          }
+          bar.doubleValue = step - 0.5;
+          title.stringValue = 'Étape ' + m[1] + ' sur ' + m[2] + ' : ' + m[3];
+        }
+        break;
+      }
+      if (lines.length) detail.stringValue = lines[lines.length - 1];
+    }
+
+    // ---- résultat : la fenêtre reste jusqu'à « Fermer » ----
+    var ok = task.terminationStatus === 0;
+    bar.stopAnimation($());
+    bar.indeterminate = false;
+    bar.maxValue = 1;
+    bar.doubleValue = ok ? 1 : 0;
+    title.stringValue = ok ? name + ' est installé' : "L'installation n'a pas abouti";
+    detail.stringValue = ok ? 'Tout est prêt.' : 'Relancez l\'installeur pour réessayer.';
+    hint.stringValue = ok
+      ? 'Ouvrez Premiere Pro, puis : Fenêtre > Extensions > ' + menu + '.'
+      : 'Détails dans le journal : ' + logPath;
+    function button(titleText, x, isDefault) {
+      var b = $.NSButton.alloc.initWithFrame($.NSMakeRect(x, 12, 130, 32));
+      b.title = titleText;
+      b.bezelStyle = $.NSBezelStyleRounded;
+      b.setButtonType($.NSButtonTypePushOnPushOff);
+      if (isDefault) b.keyEquivalent = '\r';
+      view.addSubview(b);
+      return b;
+    }
+    // le texte du résultat remonte pour laisser la place aux boutons
+    hint.frame = $.NSMakeRect(100, 50, W - 120, 32);
+    var close = button('Fermer', W - 150, true);
+    var showLog = ok ? null : button('Voir le journal', W - 290, false);
+    app.activateIgnoringOtherApps(true);
+    win.makeKeyAndOrderFront($());
+    for (;;) {
+      pump(0.2);
+      if (close.state === 1 || !win.isVisible) break;
+      if (showLog && showLog.state === 1) {
+        showLog.state = 0;
+        sa.doShellScript('open -e "' + logPath.replace(/"/g, '\\"') + '"');
+      }
+    }
+    win.orderOut($());
+    out(ok ? 'DONE' : 'FAILED');
+  } catch (e) {
+    try { if (win) win.orderOut($()); } catch (e2) {}
+    if (!task) return;
+    task.waitUntilExit;
+    var done = task.terminationStatus === 0;
+    try {
+      sa.activate();
+      sa.displayDialog(done ? name + ' est installé.\n\nOuvrez Premiere Pro, puis : Fenêtre > Extensions > ' + menu + '.'
+        : "L'installation n'a pas abouti.\n\nDétails : " + logPath, { withTitle: name, buttons: ['OK'], defaultButton: 'OK', withIcon: done ? 'note' : 'caution' });
+    } catch (e3) {}
+    out(done ? 'DONE' : 'FAILED');
+  }
+}
+"""
+
 PLIST = """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
@@ -268,6 +447,7 @@ def mac_installer(app, pkg):
         busy = "Installation en cours (téléchargement des outils : quelques minutes)…" if app["id"] == "cypher" else "Installation en cours…"
         add(z, f"{top}/MacOS/installer", LAUNCHER.format(name=name, version=v, menu=menu(app), busy=busy).replace("\r\n", "\n").encode("utf-8"), 0o755)
         add(z, f"{top}/Resources/AppIcon.icns", icns.read_bytes(), 0o644)
+        add(z, f"{top}/Resources/installer-ui.js", INSTALLER_UI.encode("utf-8"), 0o644)
         for f in sorted(stage.rglob("*")):
             if f.is_file():
                 rel = f.relative_to(stage).as_posix()

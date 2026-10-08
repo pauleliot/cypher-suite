@@ -451,6 +451,22 @@ export function parseVimeoCSV(
   const head = lines[0].replace(/^"|"$/g, '');
   const delim = [',', ';', '\t'].sort((a, b) => head.split(b).length - head.split(a).length)[0];
   const isTc = (s: string) => /^\d{1,2}(:\d{2}){1,3}([.,]\d+)?$/.test(s.trim());
+  // Vimeo : entités HTML (« d&#039;avance »), texte encadré de guillemets littéraux (« "avec lui, …" »)
+  const cleanCell = (c: string) => {
+    let t = c
+      .replace(/&#0*39;|&apos;/g, "'")
+      .replace(/&quot;/g, '"')
+      .replace(/&#(\d+);/g, (_m, n) => String.fromCharCode(parseInt(n, 10)))
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .trim();
+    if (t.length >= 2 && t[0] === '"' && t[t.length - 1] === '"' && !t.slice(1, -1).includes('"')) t = t.slice(1, -1).trim();
+    return t;
+  };
+  // cellule de réponse vide : Vimeo écrit « "--" » quand un commentaire n'a pas de réponse
+  const isEmptyReply = (t: string) => /^[\s"'\-–—_.]*$/.test(t) || /^(n\/?a|none|aucune?)$/i.test(t.trim());
 
   const splitRow = (line: string): string[] => {
     const cells = parseCSVRow(line, delim);
@@ -458,7 +474,7 @@ export function parseVimeoCSV(
     let text = cells.length === 1 && cells[0].includes(delim) ? cells[0] : line;
     // « 00:01:14,000 » hors guillemets : la virgule des millisecondes (3 chiffres) n'est pas un séparateur
     if (delim === ',') text = text.replace(/(^|,)(\d{1,2}:\d{2}(?::\d{2})?),(\d{3})(?=,|$)/g, '$1$2.$3');
-    return parseCSVRow(text, delim);
+    return parseCSVRow(text, delim).map(cleanCell);
   };
 
   const norm = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
@@ -482,7 +498,7 @@ export function parseVimeoCSV(
   // auteur de la réponse quand elle est dans sa propre colonne (« Reply User », « Auteur de la réponse »)
   const replyAuthorIdx = find(/(reply|reponse).*(user|name|nom|auteur|author)|(user|name|nom|auteur|author).*(reply|reponse)/);
   const idIdx = find(/^(#|id|n°|no|numero|number|comment id|note id)$/);
-  const versionIdx = find(/^(version|vers)$/);
+  const versionIdx = find(/^((video|file|fichier) )?(version|vers)$/);
   const hasHeader = !firstIsData && (tcIdx >= 0 || commentIdx >= 0);
 
   const results: ReviewMarker[] = [];
@@ -565,11 +581,13 @@ export function parseVimeoCSV(
     }
     // réponses écrites dans la même ligne (« Monteur : fait | Client : merci »)
     const inlineReplies = repliesIdx >= 0 ? String(row[repliesIdx] ?? '').trim() : '';
-    if (inlineReplies) {
-      const replyAuthor = replyAuthorIdx >= 0 ? String(row[replyAuthorIdx] ?? '').trim() : '';
+    if (inlineReplies && !isEmptyReply(inlineReplies)) {
+      // Vimeo : la ligne qui répète le commentaire porte, dans « Name », l'auteur de la réponse
+      const replyAuthor =
+        (replyAuthorIdx >= 0 ? String(row[replyAuthorIdx] ?? '').trim() : '') || (twin && author.trim() ? author.trim() : '');
       const parsedReplies = inlineReplies
         .split(/\s*\|\s*|\s*↳\s*/)
-        .filter(Boolean)
+        .filter((t) => t && !isEmptyReply(t))
         .map((t) => {
           const r = parseReplyText(t);
           return replyAuthor && !r.author ? { ...r, author: replyAuthor } : r;
@@ -11217,7 +11235,7 @@ export default function App() {
 // ==================== components/AboutCypher.tsx ====================
 
 /** Version affichée dans « À propos » : à garder alignée sur CSXS/manifest.xml */
-const APP_VERSION = '2.10.0';
+const APP_VERSION = '2.10.1';
 /** Version de Cypher Checker (application autonome) : à garder alignée sur checker/package.json */
 const CHECKER_VERSION = '1.2.0';
 

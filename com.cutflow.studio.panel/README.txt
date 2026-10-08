@@ -42,8 +42,10 @@ Premiere est au premier plan ouvre une petite fenêtre : tapez le nom d'un effet
 (vidéo ou audio, plugins compris), Entrée l'applique aux clips sélectionnés.
 Maj+Entrée : sans fermer · Tab : vidéo/audio · Ctrl+D : favori · Échap : fermer.
 Mac : autorisez Premiere (ou osascript) dans Réglages Système > Confidentialité et
-sécurité > Accessibilité ; sinon, donnez un raccourci à « Cypher Console » dans
-Premiere Pro > Raccourcis clavier. Aussi dans Fenêtre > Extensions > Cypher Console.
+sécurité > Accessibilité (Cypher l'explique et ouvre les réglages si besoin ; le
+raccourci marche dès la case cochée). Journal : ~/Library/Logs/Cypher-raccourci.log.
+Sinon, donnez un raccourci à « Cypher Console » dans Premiere Pro > Raccourcis
+clavier. Aussi dans Fenêtre > Extensions > Cypher Console.
 
 Réglages > Configuration : les profils regroupent tous les réglages
 (chutiers, marqueurs, normes, apparence…) et s'exportent en un seul code
