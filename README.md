@@ -4,7 +4,7 @@ Quatre panneaux gratuits pour **Adobe Premiere Pro** (Windows et macOS), en fran
 
 | Panneau | Dossier | |
 |---|---|---|
-| **Mori** | `com.cutflow.studio.panel/` | Médias (WAV, remux MP4), chutiers, retours client en marqueurs, Checker avant export |
+| **Mori** | `Mori/` | Médias (WAV, remux MP4), chutiers, retours client en marqueurs, Checker avant export |
 | **Ongaku** 楽 | `Ongaku/` | Bibliothèque musique / SFX, BPM et beats en marqueurs, fins calées sur la mesure |
 | **Sori** 反 | `Sori/` | Éditeur de courbes d'animation (position, échelle, rotation, opacité), flou de mouvement |
 | **Kiru** 切 | `Kiru/` | Autocut par le texte (silences, hésitations, reprises), transcription locale, sous-titres stylés et d'interview |

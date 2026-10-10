@@ -30,7 +30,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 OUT = ROOT / ".release"  # hors du dépôt (.gitignore)
 APPS = [
-    {"id": "mori", "name": "Mori", "dir": "com.cutflow.studio.panel", "tagline": "Le couteau suisse du monteur"},
+    {"id": "mori", "name": "Mori", "dir": "Mori", "tagline": "Le couteau suisse du monteur"},
     {"id": "ongaku", "name": "Ongaku", "dir": "Ongaku", "tagline": "Bibliothèque musicale et beats"},
     {"id": "sori", "name": "Sori", "dir": "Sori", "tagline": "Courbes d'animation"},
     {"id": "kiru", "name": "Kiru", "dir": "Kiru", "tagline": "Autocut et sous-titres"},
