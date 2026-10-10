@@ -1,4 +1,4 @@
-/* Ongaku — même DA que Cypher : bleu nuit, crème, accent bleu lavande, police Urbanist */
+/* Ongaku — même DA que Mori : bleu nuit, crème, accent bleu lavande, police Urbanist */
 :root {
   --ink: 12 19 34;
   --zinc-50: 247 245 239; --zinc-100: 239 236 228; --zinc-200: 221 224 232; --zinc-300: 185 191 205;
@@ -283,7 +283,7 @@ svg.i.flip { transform: scaleX(-1); }
 @keyframes pop { from { transform: translateY(6px); opacity: 0; } }
 @keyframes pulse { 50% { opacity: .35; } }
 
-/* ---------- Réglages : fenêtre centrée (comme Cypher) ---------- */
+/* ---------- Réglages : fenêtre centrée (comme Mori) ---------- */
 #settings { position: fixed; inset: 0; z-index: 50; background: rgb(0 0 0 / .75); display: none; align-items: center; justify-content: center; padding: 12px; }
 #settings.open { display: flex; }
 #settings .modal { width: 100%; max-width: 640px; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; border-radius: 12px; background: rgb(var(--zinc-900)); border: 1px solid rgb(var(--zinc-700)); box-shadow: 0 25px 50px -12px rgb(0 0 0 / .6); color: rgb(var(--zinc-100)); animation: pop .16s ease-out; }

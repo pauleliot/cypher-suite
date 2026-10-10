@@ -1,13 +1,13 @@
 <!doctype html>
-<!-- Cypher Console : console d'effets (Ctrl+Espace / ⌥Espace). Page légère, sans Node ni React ni app.js, pour s'ouvrir vite
-     (le thème arrive de la fenêtre cachée de Cypher par un événement CEP).
-     Logique dans vendor/cypher-console.js ; styles = vendor/cypher.css (Tailwind précompilé, voir tailwind.config). -->
+<!-- Mori Console : console d'effets (Ctrl+Espace / ⌥Espace). Page légère, sans Node ni React ni app.js, pour s'ouvrir vite
+     (le thème arrive de la fenêtre cachée de Mori par un événement CEP).
+     Logique dans vendor/mori-console.js ; styles = vendor/mori.css (Tailwind précompilé, voir tailwind.config). -->
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <title>Cypher Console</title>
+    <title>Mori Console</title>
     <link href="./vendor/fonts/urbanist.css" rel="stylesheet" />
-    <link href="./vendor/cypher.css" rel="stylesheet" />
+    <link href="./vendor/mori.css" rel="stylesheet" />
     <style>
       :root {
         --ink: 12 19 34;
@@ -54,6 +54,6 @@
       // pas de menu du navigateur au clic droit (sauf dans le champ de recherche)
       document.addEventListener('contextmenu', function (e) { if (!e.target || e.target.tagName !== 'INPUT') e.preventDefault(); });
     </script>
-    <script src="./vendor/cypher-console.js"></script>
+    <script src="./vendor/mori-console.js"></script>
   </body>
 </html>

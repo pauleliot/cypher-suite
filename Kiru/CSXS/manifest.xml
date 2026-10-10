@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ExtensionManifest Version="11.0" ExtensionBundleId="com.kiru.panel" ExtensionBundleVersion="1.2.0" ExtensionBundleName="Kiru" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<ExtensionManifest Version="11.0" ExtensionBundleId="com.kiru.panel" ExtensionBundleVersion="1.3.0" ExtensionBundleName="Kiru" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <ExtensionList>
-    <Extension Id="com.kiru.panel" Version="1.2.0" />
+    <Extension Id="com.kiru.panel" Version="1.3.0" />
   </ExtensionList>
   <ExecutionEnvironment>
     <HostList>
@@ -21,7 +21,7 @@
           <MainPath>./index.html</MainPath>
           <ScriptPath>./jsx/Kiru_Premiere.jsx</ScriptPath>
           <CEFCommandLine>
-            <!-- Node.js (window.cep_node) : lecture de l'audio des médias, ffmpeg, apparence partagée avec Cypher / Ongaku / Sori -->
+            <!-- Node.js (window.cep_node) : lecture de l'audio des médias, ffmpeg, apparence partagée avec Mori / Ongaku / Sori -->
             <Parameter>--enable-nodejs</Parameter>
             <Parameter>--allow-file-access</Parameter>
             <Parameter>--allow-file-access-from-files</Parameter>

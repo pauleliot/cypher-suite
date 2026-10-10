@@ -1,10 +1,10 @@
-# Suite Cypher
+# Suite Mori
 
 Quatre panneaux gratuits pour **Adobe Premiere Pro** (Windows et macOS), en français, avec le même thème partagé.
 
 | Panneau | Dossier | |
 |---|---|---|
-| **Cypher** | `com.cutflow.studio.panel/` | Médias (WAV, remux MP4), chutiers, retours client en marqueurs, Checker avant export |
+| **Mori** | `com.cutflow.studio.panel/` | Médias (WAV, remux MP4), chutiers, retours client en marqueurs, Checker avant export |
 | **Ongaku** 楽 | `Ongaku/` | Bibliothèque musique / SFX, BPM et beats en marqueurs, fins calées sur la mesure |
 | **Sori** 反 | `Sori/` | Éditeur de courbes d'animation (position, échelle, rotation, opacité), flou de mouvement |
 | **Kiru** 切 | `Kiru/` | Autocut par le texte (silences, hésitations, reprises), transcription locale, sous-titres stylés et d'interview |
@@ -21,7 +21,7 @@ Fermez Premiere Pro, puis :
 - **macOS** : dézippez `Installer-<Nom>-<version>-macOS.zip`, double-cliquez **Installer <Nom>**. La première fois :
   *Réglages Système › Confidentialité et sécurité › Ouvrir quand même*.
 
-Puis dans Premiere Pro : Fenêtre › Extensions › le panneau. Premiere Pro 2022 ou plus récent (Cypher : 2024 ou plus
+Puis dans Premiere Pro : Fenêtre › Extensions › le panneau. Premiere Pro 2022 ou plus récent (Mori : 2024 ou plus
 récent). Aucun droit administrateur nécessaire.
 
 ## Développement

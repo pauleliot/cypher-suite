@@ -1,19 +1,19 @@
-// Cypher Console : raccourci ⌥Espace (Option+Espace) dans Premiere Pro (macOS, JavaScript for Automation)
+// Mori Console : raccourci ⌥Espace (Option+Espace) dans Premiere Pro (macOS, JavaScript for Automation)
 //
-// Lancé (en arrière-plan) par Cypher : osascript -l JavaScript cypher-hotkey-mac.js
+// Lancé (en arrière-plan) par Mori : osascript -l JavaScript mori-hotkey-mac.js
 // Surveille les touches de tout le système et écrit « HOTKEY » sur la sortie standard quand ⌥Espace est pressé alors
-// que Premiere est au premier plan ; Cypher ouvre alors la console. S'arrête quand Premiere n'est plus lancé.
+// que Premiere est au premier plan ; Mori ouvre alors la console. S'arrête quand Premiere n'est plus lancé.
 // macOS ne transmet les touches qu'avec l'autorisation « Accessibilité » : sans elle, écrit « NOPERM », explique
 // (une fois par jour) quelle case cocher, puis attend l'autorisation et démarre tout seul dès qu'elle est donnée.
-// Journal : ~/Library/Logs/Cypher-raccourci.log
+// Journal : ~/Library/Logs/Mori-raccourci.log
 ObjC.import('Cocoa');
 ObjC.import('ApplicationServices');
 
 var KEY_SPACE = 49;
 var OPTION = 1 << 19, COMMAND = 1 << 20, CONTROL = 1 << 18, SHIFT = 1 << 17;
 var HOME = ObjC.unwrap($.NSHomeDirectory());
-var LOG = HOME + '/Library/Logs/Cypher-raccourci.log';
-var EXPLAINED = HOME + '/Library/Application Support/CypherSuite/hotkey-explained';
+var LOG = HOME + '/Library/Logs/Mori-raccourci.log';
+var EXPLAINED = HOME + '/Library/Application Support/MoriSuite/hotkey-explained';
 var SETTINGS_URL = 'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility';
 
 function say(text) {
@@ -76,13 +76,13 @@ function explain() {
   try {
     var sa = Application.currentApplication();
     sa.includeStandardAdditions = true;
-    sa.doShellScript('mkdir -p "' + HOME + '/Library/Application Support/CypherSuite" && touch "' + EXPLAINED + '"');
+    sa.doShellScript('mkdir -p "' + HOME + '/Library/Application Support/MoriSuite" && touch "' + EXPLAINED + '"');
     sa.activate();
     var r = sa.displayDialog(
-      'Pour que ⌥Espace ouvre Cypher Console dans Premiere Pro, macOS doit l\'autoriser :\n\n' +
+      'Pour que ⌥Espace ouvre Mori Console dans Premiere Pro, macOS doit l\'autoriser :\n\n' +
         'Réglages Système > Confidentialité et sécurité > Accessibilité : activez « Adobe Premiere Pro » ' +
         '(ou « osascript » s\'il apparaît dans la liste).\n\nLe raccourci marche dès que la case est cochée, sans redémarrer.',
-      { withTitle: 'Cypher Console', buttons: ['Plus tard', 'Ouvrir les réglages'], defaultButton: 'Ouvrir les réglages', withIcon: 'note' }
+      { withTitle: 'Mori Console', buttons: ['Plus tard', 'Ouvrir les réglages'], defaultButton: 'Ouvrir les réglages', withIcon: 'note' }
     );
     if (r.buttonReturned === 'Ouvrir les réglages') sa.doShellScript('open "' + SETTINGS_URL + '"');
   } catch (e) {} // « Plus tard » ou fenêtre impossible

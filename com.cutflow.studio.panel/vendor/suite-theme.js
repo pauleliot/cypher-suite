@@ -1,9 +1,9 @@
 /**
- * Apparence partagée entre Cypher, Ongaku, Sori et Kiru (même fichier copié dans chaque panneau).
+ * Apparence partagée entre Mori, Ongaku, Sori et Kiru (même fichier copié dans chaque panneau).
  *
  * Thème (fond / accent / principal), nom affiché, couleur du nom, presets enregistrés et police sont écrits dans
- *   Windows : %APPDATA%\CypherSuite\appearance.json
- *   macOS   : ~/Library/Application Support/CypherSuite/appearance.json
+ *   Windows : %APPDATA%\MoriSuite\appearance.json
+ *   macOS   : ~/Library/Application Support/MoriSuite/appearance.json
  * Chaque panneau garde ses propres onglets affichés. Un changement fait dans un panneau est repris
  * par les autres en direct (événement CEP + relecture du fichier toutes les 1,5 s).
  *
@@ -17,13 +17,13 @@
  *   SuiteTheme.font()              -> { id, name } de la police en cours
  *   SuiteTheme.setFont(id)         -> 'urbanist', 'space-grotesk', 'inter' ou 'custom' (police importée)
  * Les polices livrées sont dans vendor/fonts/ (suite-fonts.css) ; une police importée (.ttf .otf .woff .woff2) est
- * copiée dans CypherSuite/fonts/ pour que tous les panneaux la retrouvent.
+ * copiée dans MoriSuite/fonts/ pour que tous les panneaux la retrouvent.
  */
 (function () {
   'use strict';
   if (window.SuiteTheme) return;
 
-  var EVENT = 'com.cyphersuite.appearance.changed';
+  var EVENT = 'com.morisuite.appearance.changed';
   var FONTS = [
     { id: 'urbanist', name: 'Urbanist' },
     { id: 'space-grotesk', name: 'Space Grotesk' },
@@ -43,7 +43,7 @@
   function req(name) {
     var n = window.cep_node, w = window;
     var r = (n && typeof n.require === 'function' && n.require) ||
-      (typeof w.__cypherRequire === 'function' && w.__cypherRequire) ||
+      (typeof w.__moriRequire === 'function' && w.__moriRequire) ||
       (typeof w.__ongakuRequire === 'function' && w.__ongakuRequire) ||
       (typeof w.__soriRequire === 'function' && w.__soriRequire) ||
       (typeof w.require === 'function' && w.require);
@@ -56,8 +56,20 @@
     if (!fs || !pathMod || !proc || !proc.env) return null;
     var env = proc.env;
     var dir = proc.platform === 'darwin'
-      ? pathMod.join(env.HOME || '', 'Library', 'Application Support', 'CypherSuite')
-      : pathMod.join(env.APPDATA || pathMod.join(env.USERPROFILE || '', 'AppData', 'Roaming'), 'CypherSuite');
+      ? pathMod.join(env.HOME || '', 'Library', 'Application Support', 'MoriSuite')
+      : pathMod.join(env.APPDATA || pathMod.join(env.USERPROFILE || '', 'AppData', 'Roaming'), 'MoriSuite');
+    // dossier d'avant le renommage de la suite : repris une fois (thème, presets, police importée)
+    try {
+      var before = pathMod.join(pathMod.dirname(dir), 'CypherSuite');
+      if (!fs.existsSync(pathMod.join(dir, 'appearance.json')) && fs.existsSync(pathMod.join(before, 'appearance.json'))) {
+        fs.mkdirSync(pathMod.join(dir, 'fonts'), { recursive: true });
+        fs.copyFileSync(pathMod.join(before, 'appearance.json'), pathMod.join(dir, 'appearance.json'));
+        var oldFonts = pathMod.join(before, 'fonts');
+        if (fs.existsSync(oldFonts)) {
+          fs.readdirSync(oldFonts).forEach(function (f) { fs.copyFileSync(pathMod.join(oldFonts, f), pathMod.join(dir, 'fonts', f)); });
+        }
+      }
+    } catch (e) {}
     return pathMod.join(dir, 'appearance.json');
   }
   var FILE = filePath();
@@ -234,7 +246,7 @@
         family = "'" + f.name + "'";
       }
       // Urbanist : la feuille du panneau reprend la main ; sinon la police choisie passe devant
-      // (.font-sans : dans Cypher, le conteneur de l'application fixe lui-même la police)
+      // (.font-sans : dans Mori, le conteneur de l'application fixe lui-même la police)
       ensureStyle('suite-font', 'style').textContent = family ? 'html body, html body #root, html body .font-sans { font-family: ' + family + ', Urbanist, ' + FALLBACK + ' !important; }' : '';
     }
     for (var i = pickers.length - 1; i >= 0; i--) {
@@ -260,7 +272,7 @@
     return true;
   }
 
-  /** Copie la police choisie dans CypherSuite/fonts/ puis la sélectionne ; renvoie '' ou un message d'erreur */
+  /** Copie la police choisie dans MoriSuite/fonts/ puis la sélectionne ; renvoie '' ou un message d'erreur */
   function importFont(file, done) {
     var ext = (String(file.name).split('.').pop() || '').toLowerCase();
     if (!FONT_TYPES[ext]) return done('Format non pris en charge : choisissez un fichier .ttf, .otf, .woff ou .woff2.');
@@ -311,7 +323,7 @@
       msg.textContent = text;
       msg.style.color = isError ? '#fca5a5' : 'rgb(var(--zinc-500))';
     };
-    say(FILE ? 'Commune à Cypher, Ongaku, Sori et Kiru. Police importée : .ttf, .otf, .woff ou .woff2.' : 'Choix de la police indisponible ici (panneau ouvert hors de Premiere).', false);
+    say(FILE ? 'Commune à Mori, Ongaku, Sori et Kiru. Police importée : .ttf, .otf, .woff ou .woff2.' : 'Choix de la police indisponible ici (panneau ouvert hors de Premiere).', false);
     el.onclick = function (ev) {
       var t = ev.target;
       if (!t || !t.getAttribute) return;

@@ -1266,7 +1266,7 @@ export function sameBinSetup(a, b) {
 /** Code d'export (JSON lisible, à coller dans « Importer » chez un collègue) */
 export function exportBinPresetCode(name, rules, musicThreshold) {
   return JSON.stringify({
-    cypherBins: 1,
+    moriBins: 1,
     name,
     musicThreshold,
     rules: portableBinRules(rules)
@@ -2147,7 +2147,7 @@ export function reconcileWithTimeline(list, seqId, timeline, resolvedAction, fps
     if (!hit) {
       if (m.pproGuid && m.pproSeqId === seqId) {
         if (m.isResolved && resolvedAction === 'delete') {
-          // retiré de la timeline par Cypher lui-même : le retour reste, le lien est oublié
+          // retiré de la timeline par Mori lui-même : le retour reste, le lien est oublié
           const {
             pproGuid,
             pproSeqId,
@@ -2328,7 +2328,7 @@ function nodeRequire(name) {
   // Après un rechargement de la page, CEP ne fournit plus cep_node.require :
   // on retombe sur la copie faite au démarrage (index.html) ou sur process.mainModule.require
   const mainModule = n?.process?.mainModule;
-  const req = n && typeof n.require === 'function' && n.require || typeof w.__cypherRequire === 'function' && w.__cypherRequire || mainModule && typeof mainModule.require === 'function' && mainModule.require.bind(mainModule) || typeof w.require === 'function' && w.require;
+  const req = n && typeof n.require === 'function' && n.require || typeof w.__moriRequire === 'function' && w.__moriRequire || mainModule && typeof mainModule.require === 'function' && mainModule.require.bind(mainModule) || typeof w.require === 'function' && w.require;
   return req ? req(name) : null;
 }
 export function isNodeAvailable() {
@@ -2345,8 +2345,8 @@ export function isWindowsPlatform() {
 
 /** Dossier de l'extension, déduit de l'URL de index.html */
 function extensionRoot() {
-  // Cypher Checker (servi par cypher://) : dossier réel fourni par la page
-  const declared = window.__cypherRoot;
+  // Mori Checker (servi par mori://) : dossier réel fourni par la page
+  const declared = window.__moriRoot;
   if (typeof declared === 'string' && declared) return declared;
   let p = decodeURIComponent(new URL('.', location.href).pathname);
   if (isWindowsPlatform()) p = p.replace(/^\/([A-Za-z]:)/, '$1').replace(/\//g, '\\');
@@ -2356,7 +2356,7 @@ function extensionRoot() {
 /** Nom de la fenêtre du panneau dans Premiere (onglet, Fenêtre > Extensions) pour un nom affiché donné */
 export function panelWindowName(label) {
   const l = String(label || '').trim();
-  return l ? `Cypher — ${l}` : 'Cypher';
+  return l ? `Mori — ${l}` : 'Mori';
 }
 
 /**
@@ -2366,7 +2366,7 @@ export function panelWindowName(label) {
 export function writePanelWindowName(label) {
   const fs = nodeRequire('fs');
   const pathMod = nodeRequire('path');
-  if (!fs || !pathMod || !isRunningInPremiere() || window.__cypherRoot) return 'unavailable';
+  if (!fs || !pathMod || !isRunningInPremiere() || window.__moriRoot) return 'unavailable';
   try {
     const file = pathMod.join(extensionRoot(), 'CSXS', 'manifest.xml');
     const xml = String(fs.readFileSync(file, 'utf8'));
@@ -2783,7 +2783,7 @@ export async function importIntoActiveBin(filePath) {
 /** Chemins locaux des fichiers glissés dans le panneau (File.path, sinon liste d'URI file://) */
 export function pathsFromDrop(dt) {
   const out = [];
-  const pathOf = window.__cypherPathForFile;
+  const pathOf = window.__moriPathForFile;
   for (const f of Array.from(dt.files || [])) {
     const p = f.path || (typeof pathOf === 'function' ? pathOf(f) : '');
     if (p) out.push(p);
@@ -3111,7 +3111,7 @@ export function loadWaveform(ytdlp, ffmpeg, url, duration, onUpdate, onError) {
   const os = nodeRequire('os');
   const pathMod = nodeRequire('path');
   const cp = nodeRequire('child_process');
-  const dir = pathMod.join(os.tmpdir(), 'cypher-waveform');
+  const dir = pathMod.join(os.tmpdir(), 'mori-waveform');
   try {
     fs.mkdirSync(dir, {
       recursive: true
@@ -3120,7 +3120,7 @@ export function loadWaveform(ytdlp, ffmpeg, url, duration, onUpdate, onError) {
   let canceled = false;
   let file = '';
   let decoder = null;
-  const run = runYtdlp(ytdlp, ['-f', 'wa[acodec!=none]/ba', '-N', '8', '--no-playlist', '--no-warnings', '--quiet', '--progress', '--newline', '--encoding', 'utf-8', '-P', dir, '-o', `%(id)s-wave-${Date.now()}.%(ext)s`, '--print', 'after_move:CYPHER_FILE:%(filepath)s', ...bundledDenoArgs(), '--ffmpeg-location', pathMod.dirname(ffmpeg), url], ratio => !canceled && onUpdate(new Float32Array(0), 'download', ratio));
+  const run = runYtdlp(ytdlp, ['-f', 'wa[acodec!=none]/ba', '-N', '8', '--no-playlist', '--no-warnings', '--quiet', '--progress', '--newline', '--encoding', 'utf-8', '-P', dir, '-o', `%(id)s-wave-${Date.now()}.%(ext)s`, '--print', 'after_move:MORI_FILE:%(filepath)s', ...bundledDenoArgs(), '--ffmpeg-location', pathMod.dirname(ffmpeg), url], ratio => !canceled && onUpdate(new Float32Array(0), 'download', ratio));
   run.promise.then(path => {
     file = path;
     if (canceled) return deleteFileQuietly(file);
@@ -3624,7 +3624,7 @@ export function buildYtdlpArgs(url, format, maxHeight, outputDir, ffmpegPath, wa
   const pathMod = nodeRequire('path');
   // extrait : le passage choisi figure dans le nom (« 01m00s-01m10s »), pour ne pas écraser la vidéo entière
   const sectionLabel = section ? ` ${clockForFilename(section.start)}-${clockForFilename(section.end)}` : '';
-  const args = ['--no-playlist', '--no-warnings', '--quiet', '--progress', '--newline', '--windows-filenames', '--encoding', 'utf-8', '-P', outputDir, '-o', `%(title).120B [%(id)s]${sectionLabel}.%(ext)s`, '--print', 'after_move:CYPHER_FILE:%(filepath)s', ...bundledDenoArgs()];
+  const args = ['--no-playlist', '--no-warnings', '--quiet', '--progress', '--newline', '--windows-filenames', '--encoding', 'utf-8', '-P', outputDir, '-o', `%(title).120B [%(id)s]${sectionLabel}.%(ext)s`, '--print', 'after_move:MORI_FILE:%(filepath)s', ...bundledDenoArgs()];
   if (ffmpegPath) args.push('--ffmpeg-location', pathMod.dirname(ffmpegPath));
   // seulement le passage choisi, coupé à l'image près (réencodé autour des points de coupe)
   if (section) args.push('--download-sections', `*${section.start.toFixed(3)}-${section.end.toFixed(3)}`, '--force-keyframes-at-cuts');
@@ -3653,8 +3653,8 @@ export function runYtdlp(ytdlp, args, onProgress) {
   let step = 1;
   let lastRatio = 0;
   const handleLine = line => {
-    if (line.startsWith('CYPHER_FILE:')) {
-      finalPath = line.slice('CYPHER_FILE:'.length).trim();
+    if (line.startsWith('MORI_FILE:')) {
+      finalPath = line.slice('MORI_FILE:'.length).trim();
       return;
     }
     const m = line.match(/\[download\]\s+([\d.]+)%/);
@@ -3741,6 +3741,21 @@ export function normalizeHex(value) {
   if (/^[0-9a-f]{3}$/.test(v)) v = v.split('').map(c => c + c).join('');
   return /^[0-9a-f]{6}$/.test(v) ? `#${v}` : null;
 }
+
+/**
+ * Code couleur trouvé dans un texte tapé ou collé : « #E50914 », « E50914 », « rgb(229, 9, 20) », « 229, 9, 20 »,
+ * ou un code au milieu d'une phrase (« Fond : #141414 ») -> '#e50914' ; null si aucun
+ */
+export function colorFromText(value) {
+  const direct = normalizeHex(value);
+  if (direct) return direct;
+  const rgb = value.match(/(\d{1,3})\s*[,;\s]\s*(\d{1,3})\s*[,;\s]\s*(\d{1,3})/);
+  if (rgb && rgb.slice(1).every(n => +n <= 255)) {
+    return `#${rgb.slice(1).map(n => (+n).toString(16).padStart(2, '0')).join('')}`;
+  }
+  const hex = value.match(/#([0-9a-f]{6}|[0-9a-f]{3})(?![0-9a-f])/i) || value.match(/(?:^|[^0-9a-z])([0-9a-f]{6})(?![0-9a-z])/i);
+  return hex ? normalizeHex(hex[1]) : null;
+}
 function hexToRgb(hex) {
   const v = (normalizeHex(hex) || '#000000').slice(1);
   return [parseInt(v.slice(0, 2), 16), parseInt(v.slice(2, 4), 16), parseInt(v.slice(4, 6), 16)];
@@ -3805,7 +3820,7 @@ export function applyTheme(theme) {
 
 /**
  * Apparence partagée avec Ongaku et Sori (vendor/suite-theme.js) : thème, nom affiché, couleur du nom et
- * presets sont lus / écrits dans %APPDATA%\CypherSuite\appearance.json. Les onglets restent propres à Cypher.
+ * presets sont lus / écrits dans %APPDATA%\MoriSuite\appearance.json. Les onglets restent propres à Mori.
  */
 
 export function suiteTheme() {
@@ -3855,7 +3870,7 @@ export function saveAppearance(settings) {
   } catch {}
   // n'écrit que si les valeurs partagées ont changé (crée le fichier au premier lancement)
   try {
-    suiteTheme()?.write(settings, 'Cypher');
+    suiteTheme()?.write(settings, 'Mori');
   } catch {}
 }
 
@@ -3869,7 +3884,7 @@ export function exportPresetCode(preset) {
     brandColor
   } = preset;
   return JSON.stringify({
-    cypherTheme: 1,
+    moriTheme: 1,
     name,
     background,
     accent,
@@ -3986,7 +4001,7 @@ export const Header = ({
             className: "w-8 h-8 rounded-lg bg-cream-300 flex items-center justify-center flex-shrink-0 shadow",
             children: /*#__PURE__*/_jsx("img", {
               src: "./assets/logo.png",
-              alt: "Cypher",
+              alt: "Mori",
               draggable: false,
               className: "w-6 h-6"
             })
@@ -3994,7 +4009,7 @@ export const Header = ({
             className: "flex items-baseline gap-2 min-w-0",
             children: [/*#__PURE__*/_jsx("span", {
               className: "font-extrabold text-lg tracking-tight text-cream-300 leading-none",
-              children: "Cypher"
+              children: "Mori"
             }), brandLabel && /*#__PURE__*/_jsx("span", {
               className: "font-semibold text-sm leading-none truncate",
               style: {
@@ -4740,7 +4755,7 @@ export const VideoTranscoder = () => {
       className: "rounded-2xl border border-white/10 bg-zinc-900/50 p-4 space-y-3",
       children: [!nodeOk ? /*#__PURE__*/_jsx(StatusMessage, {
         isError: true,
-        message: "Red\xE9marrez Premiere Pro pour terminer l'installation de Cypher : cet outil sera disponible ensuite."
+        message: "Red\xE9marrez Premiere Pro pour terminer l'installation de Mori : cet outil sera disponible ensuite."
       }) : !tools ? /*#__PURE__*/_jsxs("div", {
         className: "space-y-2",
         children: [/*#__PURE__*/_jsx(StatusMessage, {
@@ -5298,12 +5313,12 @@ export const WebDownloader = () => {
       className: "rounded-2xl border border-white/10 bg-zinc-900/50 p-4 space-y-3",
       children: [!nodeOk ? /*#__PURE__*/_jsx(StatusMessage, {
         isError: true,
-        message: "Red\xE9marrez Premiere Pro pour terminer l'installation de Cypher : cet outil sera disponible ensuite."
+        message: "Red\xE9marrez Premiere Pro pour terminer l'installation de Mori : cet outil sera disponible ensuite."
       }) : !ytdlp ? /*#__PURE__*/_jsxs("div", {
         className: "space-y-2",
         children: [/*#__PURE__*/_jsx(StatusMessage, {
           isError: true,
-          message: "yt-dlp est introuvable. Relancez l'installeur de Cypher (il l'installe), ou indiquez son emplacement."
+          message: "yt-dlp est introuvable. Relancez l'installeur de Mori (il l'installe), ou indiquez son emplacement."
         }), /*#__PURE__*/_jsxs("button", {
           onClick: handleChooseYtdlp,
           className: `w-full ${ghostButton}`,
@@ -5799,7 +5814,7 @@ export function exportDeliveryPresetCode(preset) {
     ...rest
   } = preset;
   return JSON.stringify({
-    cypherNorm: 1,
+    moriNorm: 1,
     ...rest
   });
 }
@@ -5810,7 +5825,7 @@ export function parseDeliveryPresetCode(code) {
   } catch {
     throw new Error('code illisible : collez le texte obtenu avec « Exporter »');
   }
-  if (!data || data.cypherNorm !== 1) throw new Error('ce code ne contient pas de norme Cypher');
+  if (!data || data.moriNorm !== 1) throw new Error('ce code ne contient pas de norme Mori');
   const preset = {
     ...EMPTY_PRESET,
     id: `norm-${Date.now()}`,
@@ -6368,7 +6383,7 @@ async function measureSequenceLoudness(preset, onStep) {
   }];
   const os = nodeRequire('os');
   const pathMod = nodeRequire('path');
-  const wav = pathMod.join(os.tmpdir(), `cypher-mix-${Date.now()}.wav`);
+  const wav = pathMod.join(os.tmpdir(), `mori-mix-${Date.now()}.wav`);
   const script = `
     (function() {
       var seq = app.project.activeSequence;
@@ -7140,7 +7155,7 @@ export function buildPdfReport(title, results, meta) {
   return bytes;
 }
 
-/** Écrit un fichier binaire (Node dans Premiere / Cypher Checker) */
+/** Écrit un fichier binaire (Node dans Premiere / Mori Checker) */
 function writeBinaryFile(path, bytes) {
   const fs = nodeRequire('fs');
   const B = window.cep_node?.Buffer;
@@ -7482,7 +7497,7 @@ export const DeliveryChecker = ({
   useEffect(() => writeSetting('cutflow.checkerBatchPdf', batchPdf), [batchPdf]);
   const preset = presets.find(p => p.id === presetId) || presets[0];
   const insidePremiere = isRunningInPremiere();
-  const productLabel = standalone ? `Cypher Checker ${CHECKER_VERSION}` : `Cypher Studio ${APP_VERSION}`;
+  const productLabel = standalone ? `Mori Checker ${CHECKER_VERSION}` : `Mori Studio ${APP_VERSION}`;
   useEffect(() => {
     if (nodeOk) setTools(findFfmpegTools());
   }, [nodeOk]);
@@ -7522,7 +7537,7 @@ export const DeliveryChecker = ({
     });
   });
   const handlePadCheck = file => run(async () => {
-    if (!tools) throw new Error('FFmpeg introuvable : installez-le avec l’installeur Cypher');
+    if (!tools) throw new Error('FFmpeg introuvable : installez-le avec l’installeur Mori');
     if (!preset) throw new Error('aucune norme : créez-en une dans Réglages > Normes');
     setReport(null);
     const results = await checkDeliveryFile(tools, file, preset, groups, (text, ratio) => setStep({
@@ -7552,7 +7567,7 @@ export const DeliveryChecker = ({
     });
   });
   const handleBatch = files => run(async () => {
-    if (!tools) throw new Error('FFmpeg introuvable : installez-le avec l’installeur Cypher');
+    if (!tools) throw new Error('FFmpeg introuvable : installez-le avec l’installeur Mori');
     if (!preset) throw new Error('aucune norme : créez-en une dans Réglages > Normes');
     const items = files.map(path => ({
       path,
@@ -7585,7 +7600,7 @@ export const DeliveryChecker = ({
         let pdfError;
         if (batchPdf) {
           try {
-            pdf = items[i].path.replace(/\.[^.\\/]+$/, '') + ' - Rapport Cypher.pdf';
+            pdf = items[i].path.replace(/\.[^.\\/]+$/, '') + ' - Rapport Mori.pdf';
             writeBinaryFile(pdf, buildPdfReport(`${items[i].name} · ${preset.name}`, results, {
               product: productLabel,
               file: items[i].path,
@@ -7619,7 +7634,7 @@ export const DeliveryChecker = ({
         const now = new Date();
         const two = n => String(n).padStart(2, '0');
         const stamp = `${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())} ${two(now.getHours())}h${two(now.getMinutes())}`;
-        recap = `${folder}${sep}Récap Cypher ${stamp}.csv`;
+        recap = `${folder}${sep}Récap Mori ${stamp}.csv`;
         nodeRequire('fs').writeFileSync(recap, '\uFEFF' + batchRecapCsv(items, preset.name), 'utf8');
       } catch {
         recap = '';
@@ -7639,7 +7654,7 @@ export const DeliveryChecker = ({
       try {
         if (fs && pathMod && fs.statSync(p).isDirectory()) {
           for (const f of fs.readdirSync(p).sort((a, b) => a.localeCompare(b))) {
-            if (PAD_FILE_RE.test(f) && !/ - Rapport Cypher\.pdf$/i.test(f)) out.push(pathMod.join(p, f));
+            if (PAD_FILE_RE.test(f) && !/ - Rapport Mori\.pdf$/i.test(f)) out.push(pathMod.join(p, f));
           }
           continue;
         }
@@ -7673,13 +7688,13 @@ export const DeliveryChecker = ({
       if (res.err === 0 && Array.isArray(res.data) && res.data[0]) onDropFile(res.data);
       return;
     }
-    // hors Premiere (Cypher Checker) : sélecteur de fichiers (ou de dossier) du système
+    // hors Premiere (Mori Checker) : sélecteur de fichiers (ou de dossier) du système
     const input = document.createElement('input');
     input.type = 'file';
     if (folder) input.webkitdirectory = true;else input.accept = PAD_EXTENSIONS.map(e => '.' + e).join(',');
     input.multiple = batchMode || folder;
     input.onchange = () => {
-      const pathOf = window.__cypherPathForFile;
+      const pathOf = window.__moriPathForFile;
       const paths = Array.from(input.files || []).map(f => f.path || (typeof pathOf === 'function' ? pathOf(f) : '')).filter(Boolean);
       if (paths.length) onDropFile(paths);
     };
@@ -7828,7 +7843,7 @@ export const DeliveryChecker = ({
             }), "V\xE9rifier en lot"]
           }), batchMode && /*#__PURE__*/_jsxs("label", {
             className: "flex items-center gap-2 cursor-pointer select-none",
-            title: "\xAB <nom> - Rapport Cypher.pdf \xBB \xE0 c\xF4t\xE9 de chaque fichier, et un r\xE9cap CSV dans le dossier",
+            title: "\xAB <nom> - Rapport Mori.pdf \xBB \xE0 c\xF4t\xE9 de chaque fichier, et un r\xE9cap CSV dans le dossier",
             children: [/*#__PURE__*/_jsx("input", {
               type: "checkbox",
               checked: batchPdf,
@@ -7839,7 +7854,7 @@ export const DeliveryChecker = ({
           })]
         }), !tools && nodeOk && /*#__PURE__*/_jsx(StatusMessage, {
           isError: true,
-          message: "FFmpeg introuvable : relancez l'installeur Cypher."
+          message: "FFmpeg introuvable : relancez l'installeur Mori."
         }), /*#__PURE__*/_jsx("div", {
           className: "flex flex-wrap justify-center gap-1.5",
           children: PAD_GROUPS.map(g => /*#__PURE__*/_jsx("button", {
@@ -7956,7 +7971,7 @@ export const DeliveryChecker = ({
         }), !busy && batch.some(b => b.state === 'done' || b.state === 'failed') && /*#__PURE__*/_jsxs("button", {
           onClick: () => {
             try {
-              saveTextFile('\uFEFF' + batchRecapCsv(batch, preset?.name || ''), 'Récap Cypher.csv', 'csv', 'Enregistrer le récap du lot');
+              saveTextFile('\uFEFF' + batchRecapCsv(batch, preset?.name || ''), 'Récap Mori.csv', 'csv', 'Enregistrer le récap du lot');
             } catch {}
           },
           className: "flex items-center gap-1 text-[11px] text-zinc-400 hover:text-cream-300 cursor-pointer",
@@ -8224,7 +8239,7 @@ const NormsSettings = ({
         value: importCode,
         onChange: e => setImportCode(e.target.value),
         rows: 3,
-        placeholder: "Collez un code de norme : {\"cypherNorm\":1,\"name\":\u2026}",
+        placeholder: "Collez un code de norme : {\"moriNorm\":1,\"name\":\u2026}",
         className: "w-full bg-zinc-950 border border-zinc-800 rounded px-2 py-1 text-[10px] font-mono text-zinc-200 resize-none focus:outline-none focus:border-emerald-500"
       }), importError && /*#__PURE__*/_jsx("p", {
         className: "text-[11px] text-red-400",
@@ -8393,7 +8408,7 @@ export function sameProfileCategory(cat, a, b) {
 }
 export function exportProfileCode(name, data) {
   return JSON.stringify({
-    cypherProfile: 1,
+    moriProfile: 1,
     name,
     data
   });
@@ -8407,14 +8422,14 @@ export function parseProfileCode(code) {
   } catch {
     throw new Error('code illisible : collez le texte obtenu avec « Exporter »');
   }
-  if (!raw || raw.cypherProfile !== 1 || !raw.data) throw new Error('ce code ne contient pas de profil Cypher');
+  if (!raw || raw.moriProfile !== 1 || !raw.data) throw new Error('ce code ne contient pas de profil Mori');
   const d = raw.data;
   const stamp = Date.now();
   // les chutiers passent par le lecteur des presets de chutiers (noms, rôles, extensions, mots-clés, sous-chutiers)
   const binsFrom = (rules, threshold) => {
     try {
       return Array.isArray(rules) && rules.length ? parseBinPresetCode(JSON.stringify({
-        cypherBins: 1,
+        moriBins: 1,
         name: 'x',
         musicThreshold: threshold,
         rules: portableBinRules(rules.filter(r => r && r.binName))
@@ -8450,7 +8465,7 @@ export function parseProfileCode(code) {
     deliveryPresets: Array.isArray(d.deliveryPresets) && d.deliveryPresets.length ? d.deliveryPresets.map((p, i) => ({
       ...parseDeliveryPresetCode(JSON.stringify({
         ...p,
-        cypherNorm: 1
+        moriNorm: 1
       })),
       id: `norm-${stamp}-${i}`,
       builtIn: false
@@ -8690,7 +8705,7 @@ const ProfilesSection = ({
         value: importCode,
         onChange: e => setImportCode(e.target.value),
         rows: 3,
-        placeholder: "Collez un code de profil : {\"cypherProfile\":1,\"name\":\u2026}",
+        placeholder: "Collez un code de profil : {\"moriProfile\":1,\"name\":\u2026}",
         className: "w-full bg-zinc-950 border border-zinc-800 rounded px-2 py-1 text-[10px] font-mono text-zinc-200 resize-none focus:outline-none focus:border-emerald-500"
       }), importError && /*#__PURE__*/_jsx("p", {
         className: "text-[11px] text-red-400",
@@ -8739,12 +8754,26 @@ const HexColorField = ({
       value: text,
       onChange: e => {
         setText(e.target.value);
-        const hex = normalizeHex(e.target.value);
+        const hex = colorFromText(e.target.value);
         if (hex) onChange(hex);
+      }
+      // clic : tout le code est sélectionné, un collage ou une frappe le remplace
+      ,
+      onFocus: e => e.target.select()
+      // collage : le code collé remplace toujours l'ancien, où que soit le curseur
+      ,
+      onPaste: e => {
+        const hex = colorFromText(e.clipboardData.getData('text'));
+        if (!hex) return;
+        e.preventDefault();
+        setText(hex);
+        onChange(hex);
       },
       onBlur: () => setText(value),
       spellCheck: false,
-      className: "w-20 bg-zinc-900 border border-zinc-800 rounded px-2 py-0.5 text-[11px] font-mono text-zinc-200 focus:outline-none focus:border-emerald-500"
+      placeholder: "#RRGGBB",
+      title: "Tapez ou collez un code couleur : #E50914, E50914 ou rgb(229, 9, 20)",
+      className: "w-24 bg-zinc-900 border border-zinc-800 rounded px-2 py-0.5 text-[11px] font-mono text-zinc-200 focus:outline-none focus:border-emerald-500"
     })]
   });
 };
@@ -9367,7 +9396,7 @@ export const SettingsModal = ({
                 value: binImportCode,
                 onChange: e => setBinImportCode(e.target.value),
                 rows: 3,
-                placeholder: "Collez un code de preset : {\"cypherBins\":1,\"name\":\u2026}",
+                placeholder: "Collez un code de preset : {\"moriBins\":1,\"name\":\u2026}",
                 className: "w-full bg-zinc-950 border border-zinc-800 rounded px-2 py-1 text-[10px] font-mono text-zinc-200 resize-none focus:outline-none focus:border-emerald-500"
               }), binImportError && /*#__PURE__*/_jsx("p", {
                 className: "text-[11px] text-red-400",
@@ -9905,7 +9934,7 @@ export const SettingsModal = ({
                 value: importCode,
                 onChange: e => setImportCode(e.target.value),
                 rows: 2,
-                placeholder: "Collez un code de preset : {\"cypherTheme\":1,\"name\":\u2026}",
+                placeholder: "Collez un code de preset : {\"moriTheme\":1,\"name\":\u2026}",
                 className: "w-full bg-zinc-950 border border-zinc-800 rounded px-2 py-1 text-[10px] font-mono text-zinc-200 resize-none focus:outline-none focus:border-emerald-500"
               }), importError && /*#__PURE__*/_jsx("p", {
                 className: "text-[11px] text-red-400",
@@ -9938,7 +9967,7 @@ export const SettingsModal = ({
             className: "space-y-2",
             children: [/*#__PURE__*/_jsx("h3", {
               className: "font-bold text-white text-xs",
-              children: "Nom affich\xE9 \xE0 c\xF4t\xE9 de Cypher"
+              children: "Nom affich\xE9 \xE0 c\xF4t\xE9 de Mori"
             }), /*#__PURE__*/_jsxs("div", {
               className: "rounded-lg bg-zinc-950 border border-zinc-800 p-2.5 space-y-2",
               children: [/*#__PURE__*/_jsx("input", {
@@ -10847,7 +10876,7 @@ export const ReviewMarkersHub = ({
     if (on) {
       if (!isNodeAvailable()) return setSyncInfo({
         isError: true,
-        message: "Redémarrez Premiere Pro pour terminer l'installation de Cypher."
+        message: "Redémarrez Premiere Pro pour terminer l'installation de Mori."
       });
       if (!sync.folder) return setSyncInfo({
         isError: true,
@@ -11546,10 +11575,10 @@ export default function App() {
   // le lance aussi, au cas où Premiere n'aurait pas démarré cette fenêtre (une seule instance active, voir le script)
   useEffect(() => {
     if (!isRunningInPremiere()) return;
-    const start = () => window.CypherHotkey?.start();
-    if (window.CypherHotkey) return void start();
+    const start = () => window.MoriHotkey?.start();
+    if (window.MoriHotkey) return void start();
     const tag = document.createElement('script');
-    tag.src = './vendor/cypher-hotkey.js';
+    tag.src = './vendor/mori-hotkey.js';
     tag.onload = start;
     document.head.appendChild(tag);
   }, []);
@@ -11581,9 +11610,9 @@ export default function App() {
     })));
   }, []);
 
-  // Nom de la fenêtre : « Cypher — <nom affiché> » (« Cypher » si vide). Premiere ne renomme pas un panneau
+  // Nom de la fenêtre : « Mori — <nom affiché> » (« Mori » si vide). Premiere ne renomme pas un panneau
   // ouvert : le nom est écrit dans le manifeste et s'affiche au prochain démarrage. Réécrit aussi à chaque
-  // ouverture, pour survivre à une mise à jour de Cypher (l'installeur remet le manifeste d'origine).
+  // ouverture, pour survivre à une mise à jour de Mori (l'installeur remet le manifeste d'origine).
   useEffect(() => {
     const title = panelWindowName(appearance.brandLabel);
     document.title = title;
@@ -11692,7 +11721,7 @@ export default function App() {
       children: [/*#__PURE__*/_jsx("span", {
         className: `w-1.5 h-1.5 rounded-full ${isRunningInPremiere() ? 'bg-green-400' : 'bg-zinc-500'}`,
         title: isRunningInPremiere() ? 'Connecté à Premiere Pro' : 'Hors de Premiere Pro'
-      }), /*#__PURE__*/_jsx(AboutCypher, {}), appearance.brandLabel && /*#__PURE__*/_jsx("span", {
+      }), /*#__PURE__*/_jsx(AboutMori, {}), appearance.brandLabel && /*#__PURE__*/_jsx("span", {
         style: {
           color: appearance.brandColor
         },
@@ -11714,15 +11743,15 @@ export default function App() {
   });
 }
 
-// ==================== components/AboutCypher.tsx ====================
+// ==================== components/AboutMori.tsx ====================
 
 /** Version affichée dans « À propos » : à garder alignée sur CSXS/manifest.xml */
-const APP_VERSION = '2.11.1';
-/** Version de Cypher Checker (application autonome) : à garder alignée sur checker/package.json */
+const APP_VERSION = '2.12.0';
+/** Version de Mori Checker (application autonome) : à garder alignée sur checker/package.json */
 const CHECKER_VERSION = '1.2.0';
 
-/** « Cypher » de la barre d'état : souligné au survol, ouvre la fiche « À propos » au clic */
-function AboutCypher({
+/** « Mori » de la barre d'état : souligné au survol, ouvre la fiche « À propos » au clic */
+function AboutMori({
   product = '',
   version = APP_VERSION
 }) {
@@ -11748,14 +11777,14 @@ function AboutCypher({
       type: "button",
       onClick: () => setOpen(!open),
       className: `font-semibold text-cream-300 underline-offset-2 decoration-cream-300/70 hover:underline cursor-pointer ${open ? 'underline' : ''}`,
-      children: "Cypher"
+      children: "Mori"
     }), open && /*#__PURE__*/_jsxs("div", {
       className: "absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-56 rounded-xl border border-white/10 bg-zinc-900 shadow-2xl shadow-black/50 px-4 py-4 text-center z-50",
       children: [/*#__PURE__*/_jsx("div", {
         className: "mx-auto mb-2.5 w-12 h-12 rounded-xl bg-cream-300 flex items-center justify-center shadow",
         children: /*#__PURE__*/_jsx("img", {
           src: "./assets/logo.png",
-          alt: "Cypher",
+          alt: "Mori",
           draggable: false,
           className: "w-9 h-9"
         })
@@ -11763,7 +11792,7 @@ function AboutCypher({
         className: "flex items-baseline justify-center gap-1.5",
         children: [/*#__PURE__*/_jsxs("span", {
           className: "font-extrabold text-base text-cream-300",
-          children: ["Cypher", product ? ` ${product}` : '']
+          children: ["Mori", product ? ` ${product}` : '']
         }), /*#__PURE__*/_jsx("span", {
           className: "text-[10px] text-zinc-400",
           children: version
@@ -11788,7 +11817,7 @@ function AboutCypher({
   });
 }
 
-// ==================== CheckerApp.tsx (Cypher Checker, hors Premiere) ====================
+// ==================== CheckerApp.tsx (Mori Checker, hors Premiere) ====================
 
 function CheckerApp() {
   const [presets, setPresets] = useState(loadDeliveryPresets);
@@ -11802,7 +11831,7 @@ function CheckerApp() {
     }
   })();
   useEffect(() => {
-    document.title = 'Cypher Checker';
+    document.title = 'Mori Checker';
     const onKey = e => e.key === 'Escape' && setNormsOpen(false);
     document.addEventListener('keydown', onKey);
     // un fichier lâché hors de la zone de dépôt ne doit pas remplacer la page
@@ -11825,13 +11854,13 @@ function CheckerApp() {
           className: "w-8 h-8 rounded-lg bg-cream-300 flex items-center justify-center flex-shrink-0 shadow",
           children: /*#__PURE__*/_jsx("img", {
             src: "./assets/logo.png",
-            alt: "Cypher",
+            alt: "Mori",
             draggable: false,
             className: "w-6 h-6"
           })
         }), /*#__PURE__*/_jsx("span", {
           className: "font-extrabold text-lg tracking-tight text-cream-300 leading-none",
-          children: "Cypher"
+          children: "Mori"
         }), /*#__PURE__*/_jsx("span", {
           className: "font-semibold text-sm leading-none text-emerald-300",
           children: "Checker"
@@ -11884,7 +11913,7 @@ function CheckerApp() {
       })
     }), /*#__PURE__*/_jsxs("footer", {
       className: "border-t border-white/10 py-2 px-3 text-[11px] text-zinc-400 flex items-center justify-center gap-1.5",
-      children: [/*#__PURE__*/_jsx(AboutCypher, {
+      children: [/*#__PURE__*/_jsx(AboutMori, {
         product: "Checker",
         version: CHECKER_VERSION
       }), /*#__PURE__*/_jsx("span", {
@@ -11902,6 +11931,6 @@ import { createRoot } from 'react-dom/client';
 import { jsx as _jsx, Fragment as _Fragment, jsxs as _jsxs } from "react/jsx-runtime";
 const container = document.getElementById('root');
 const root = createRoot(container);
-// checker.html (Cypher Checker, application autonome) déclare window.__cypherMode = 'checker'
-const RootComponent = window.__cypherMode === 'checker' ? CheckerApp : App;
+// checker.html (Mori Checker, application autonome) déclare window.__moriMode = 'checker'
+const RootComponent = window.__moriMode === 'checker' ? CheckerApp : App;
 root.render(/*#__PURE__*/React.createElement(React.StrictMode, null, /*#__PURE__*/React.createElement(RootComponent, null)));

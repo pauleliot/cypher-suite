@@ -29,4 +29,4 @@ PREMIERS PAS
   - Réglez le seuil et les marges (ou choisissez un profil : Podcast, Vlog, Short…), puis « Couper » (Ctrl+Entrée).
   - Par défaut, Kiru travaille sur une copie de la séquence : l'original reste intact.
   - Recommandé : ffmpeg installé (formats MOV, MXF… et longues vidéos).
-  - Apparence partagée avec Cypher, Ongaku et Sori : un thème réglé dans l'un s'applique à tous.
+  - Apparence partagée avec Mori, Ongaku et Sori : un thème réglé dans l'un s'applique à tous.

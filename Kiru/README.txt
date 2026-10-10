@@ -1,4 +1,4 @@
-KIRU — autocut par le texte et sous-titres pour Premiere Pro (même DA que Cypher, Ongaku et Sori)
+KIRU — autocut par le texte et sous-titres pour Premiere Pro (même DA que Mori, Ongaku et Sori)
 ==============================================================================================
 
 Ouvrir : Premiere Pro > Fenêtre > Extensions > Kiru — Autocut
@@ -41,8 +41,8 @@ RÉGLAGES > IA
   Moteur de l'IA : IA locale (llama.cpp + Qwen3 4B, gratuite), abonnement Claude (Claude Code de l'application
   Claude, connexion une fois avec /login : « Claude connecté » s'affiche) ou clé API Claude.
 
-APPARENCE PARTAGÉE (Cypher, Ongaku, Sori, Kiru)
-  Windows : %APPDATA%\CypherSuite\appearance.json · macOS : ~/Library/Application Support/CypherSuite/appearance.json
+APPARENCE PARTAGÉE (Mori, Ongaku, Sori, Kiru)
+  Windows : %APPDATA%\MoriSuite\appearance.json · macOS : ~/Library/Application Support/MoriSuite/appearance.json
 
 DÉVELOPPEMENT
   python build.py → dist/Kiru-<version>-Windows.zip et -macOS.zip (version : CSXS/manifest.xml = APP_VERSION).

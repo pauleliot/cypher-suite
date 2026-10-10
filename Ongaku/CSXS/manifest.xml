@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ExtensionManifest Version="11.0" ExtensionBundleId="com.ongaku.panel" ExtensionBundleVersion="1.7.1" ExtensionBundleName="Ongaku" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<ExtensionManifest Version="11.0" ExtensionBundleId="com.ongaku.panel" ExtensionBundleVersion="1.8.0" ExtensionBundleName="Ongaku" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <ExtensionList>
-    <Extension Id="com.ongaku.panel" Version="1.7.1" />
+    <Extension Id="com.ongaku.panel" Version="1.8.0" />
   </ExtensionList>
   <ExecutionEnvironment>
     <HostList>

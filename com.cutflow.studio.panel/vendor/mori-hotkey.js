@@ -1,24 +1,24 @@
 /**
- * Cypher Console : Ctrl+Espace dans Premiere ouvre la console d'effets (fenêtre flottante com.cypher.studio.console).
+ * Mori Console : Ctrl+Espace dans Premiere ouvre la console d'effets (fenêtre flottante com.mori.studio.console).
  *
- * Windows : lance tools/cypher-hotkey.ps1 (caché), qui réserve Ctrl+Espace seulement quand Premiere est au premier
- * plan et écrit « HOTKEY » à chaque appui. Une seule instance tourne (mutex) : la fenêtre cachée de Cypher
- * (hotkey.html, démarrée avec Premiere) et le panneau Cypher appellent start() ; si l'instance qui tenait le
+ * Windows : lance tools/mori-hotkey.ps1 (caché), qui réserve Ctrl+Espace seulement quand Premiere est au premier
+ * plan et écrit « HOTKEY » à chaque appui. Une seule instance tourne (mutex) : la fenêtre cachée de Mori
+ * (hotkey.html, démarrée avec Premiere) et le panneau Mori appellent start() ; si l'instance qui tenait le
  * raccourci s'arrête (panneau fermé), les autres relancent la leur quelques secondes plus tard.
- * macOS : tools/cypher-hotkey-mac.js (JavaScript for Automation, livré avec macOS) surveille ⌥Espace quand Premiere
+ * macOS : tools/mori-hotkey-mac.js (JavaScript for Automation, livré avec macOS) surveille ⌥Espace quand Premiere
  * est au premier plan ; macOS demande une fois l'autorisation « Accessibilité ». Sans elle, la console reste
- * accessible par Fenêtre › Extensions › Cypher Console, à qui on peut aussi donner ⌥Espace dans Premiere.
+ * accessible par Fenêtre › Extensions › Mori Console, à qui on peut aussi donner ⌥Espace dans Premiere.
  */
 (function () {
   'use strict';
-  if (window.CypherHotkey) return;
-  var CONSOLE_ID = 'com.cypher.studio.console';
+  if (window.MoriHotkey) return;
+  var CONSOLE_ID = 'com.mori.studio.console';
   var child = null;
   var stopped = false;
   var retry = null;
 
   function openConsole() {
-    // pont natif de CEP : le CSInterface.js livré avec Cypher est réduit et n'a pas requestOpenExtension
+    // pont natif de CEP : le CSInterface.js livré avec Mori est réduit et n'a pas requestOpenExtension
     try {
       if (window.__adobe_cep__ && window.__adobe_cep__.requestOpenExtension) window.__adobe_cep__.requestOpenExtension(CONSOLE_ID, '');
     } catch (e) {}
@@ -40,21 +40,21 @@
     try {
       if (proc.platform === 'win32') {
         // une seule instance tient le raccourci : les suivantes attendent (mutex dans le script)
-        var ps1 = path.join(extensionDir(), 'tools', 'cypher-hotkey.ps1');
+        var ps1 = path.join(extensionDir(), 'tools', 'mori-hotkey.ps1');
         child = cp.spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', ps1], {
           windowsHide: true,
           stdio: ['pipe', 'pipe', 'ignore'],
         });
       } else {
-        // une seule instance : si une autre fenêtre Cypher l'a déjà lancée, on repasse plus tard
+        // une seule instance : si une autre fenêtre Mori l'a déjà lancée, on repasse plus tard
         var running = '';
-        try { running = cp.execSync("pgrep -f 'cypher-hotkey-mac\.js' || true", { encoding: 'utf8' }); } catch (e) {}
+        try { running = cp.execSync("pgrep -f 'mori-hotkey-mac\.js' || true", { encoding: 'utf8' }); } catch (e) {}
         if (running.trim()) {
           clearTimeout(retry);
           retry = setTimeout(start, 15000);
           return false;
         }
-        var jxa = path.join(extensionDir(), 'tools', 'cypher-hotkey-mac.js');
+        var jxa = path.join(extensionDir(), 'tools', 'mori-hotkey-mac.js');
         child = cp.spawn('/usr/bin/osascript', ['-l', 'JavaScript', jxa], { stdio: ['pipe', 'pipe', 'ignore'] });
       }
     } catch (e) {
@@ -96,7 +96,7 @@
   }
 
   // La console tourne sans Node (ouverture plus rapide) : elle demande le thème partagé au démarrage, la fenêtre
-  // cachée (ou le panneau Cypher) le lit (suite-theme.js) et le lui renvoie par un événement CEP
+  // cachée (ou le panneau Mori) le lit (suite-theme.js) et le lui renvoie par un événement CEP
   // événement CEP vers les autres fenêtres de Premiere : sans l'identifiant de l'application (« PPRO ») et celui de
   // la fenêtre, Premiere ne le transmet pas
   function sendCepEvent(type, data) {
@@ -115,11 +115,11 @@
       // la police choisie voyage avec le thème (la console ne charge que les polices livrées)
       var t = { background: shared.theme.background, accent: shared.theme.accent, primary: shared.theme.primary };
       try { t.font = window.SuiteTheme.font().id; } catch (e) {}
-      sendCepEvent('com.cypher.console.theme', JSON.stringify(t));
+      sendCepEvent('com.mori.console.theme', JSON.stringify(t));
     } catch (e) {}
   }
 
-  // macOS : délai entre le raccourci et la console prête, noté dans ~/Library/Logs/Cypher-raccourci.log
+  // macOS : délai entre le raccourci et la console prête, noté dans ~/Library/Logs/Mori-raccourci.log
   // (pour savoir où part le temps quand l'ouverture paraît lente)
   var openedAt = 0;
   function logOpenTime() {
@@ -129,7 +129,7 @@
     try {
       var node = window.cep_node;
       if (!node || node.process.platform !== 'darwin') return;
-      var file = node.require('path').join(node.process.env.HOME || '', 'Library', 'Logs', 'Cypher-raccourci.log');
+      var file = node.require('path').join(node.process.env.HOME || '', 'Library', 'Logs', 'Mori-raccourci.log');
       node.require('fs').appendFile(file, new Date().toISOString() + '  console prête ' + ms + ' ms après le raccourci\n', function () {});
     } catch (e) {}
   }
@@ -310,7 +310,7 @@
 
   function sendPresets() {
     loadPresets().then(function (list) {
-      sendCepEvent('com.cypher.console.presets', JSON.stringify({
+      sendCepEvent('com.mori.console.presets', JSON.stringify({
         from: myId(),
         list: list.map(function (p) { return { key: p.key, name: p.name, bin: p.bin, kind: p.kind }; })
       }));
@@ -370,7 +370,7 @@
       var data = ev && ev.data !== undefined ? ev.data : ev;
       req = typeof data === 'string' ? JSON.parse(data) : data;
     } catch (e) {}
-    // la fenêtre cachée et le panneau Cypher écoutent tous les deux : seule celle qui a fourni la liste répond
+    // la fenêtre cachée et le panneau Mori écoutent tous les deux : seule celle qui a fourni la liste répond
     if (!req || req.to !== myId()) return;
     loadPresets().then(function (list) {
       var preset = null;
@@ -378,21 +378,21 @@
       if (!preset) return 'ERR|Preset introuvable (fichier de presets modifié ?)';
       return evalScript(presetScript(preset));
     }).then(function (result) {
-      sendCepEvent('com.cypher.console.presetResult', JSON.stringify({ id: req.id, result: result || 'ERR|Premiere ne répond pas' }));
+      sendCepEvent('com.mori.console.presetResult', JSON.stringify({ id: req.id, result: result || 'ERR|Premiere ne répond pas' }));
     });
   }
 
   try {
     var bridge = window.__adobe_cep__;
     if (bridge && bridge.addEventListener) {
-      bridge.addEventListener('com.cypher.console.ready', function () {
+      bridge.addEventListener('com.mori.console.ready', function () {
         sendTheme();
         sendPresets();
       });
-      bridge.addEventListener('com.cypher.console.applyPreset', applyPreset);
+      bridge.addEventListener('com.mori.console.applyPreset', applyPreset);
     }
   } catch (e) {}
 
   window.addEventListener('unload', stop);
-  window.CypherHotkey = { start: start, stop: stop, openConsole: openConsole, sendTheme: sendTheme, parsePresets: parsePresets, presetScript: presetScript };
+  window.MoriHotkey = { start: start, stop: stop, openConsole: openConsole, sendTheme: sendTheme, parsePresets: parsePresets, presetScript: presetScript };
 })();

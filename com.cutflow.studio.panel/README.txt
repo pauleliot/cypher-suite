@@ -1,5 +1,5 @@
 ========================================================================
-CYPHER — STUDIO : PANNEAU PREMIERE PRO (2024 - 2026+)
+MORI — STUDIO : PANNEAU PREMIERE PRO (2024 - 2026+)
 ========================================================================
 
 Outils inclus :
@@ -35,9 +35,9 @@ Outils inclus :
                   PAD selon la norme d'un diffuseur (France TV, TF1, Canal+,
                   EBU R128, Web…), en lot pour un dossier entier (rapport PDF
                   à côté de chaque fichier + récap CSV), et consolide le projet.
-                  Existe aussi en application autonome : Cypher Checker.
+                  Existe aussi en application autonome : Mori Checker.
 
-Cypher Console (façon FX Console) : Ctrl+Espace (Windows) ou ⌥Espace (Mac) quand
+Mori Console (façon FX Console) : Ctrl+Espace (Windows) ou ⌥Espace (Mac) quand
 Premiere est au premier plan ouvre une petite fenêtre : tapez le nom d'un effet
 (vidéo ou audio, plugins compris), Entrée l'applique aux clips sélectionnés.
 Maj+Entrée : sans fermer · Tab : vidéo/audio/presets · Ctrl+D : favori · Échap : fermer.
@@ -46,19 +46,19 @@ images clés repris ; les poignées exactes des courbes et les données internes
 effet (LUT, masque, texte) ne peuvent pas l'être. Un preset créé pendant la session
 apparaît après le redémarrage de Premiere (il n'enregistre ses presets qu'en quittant).
 Mac : autorisez Premiere (ou osascript) dans Réglages Système > Confidentialité et
-sécurité > Accessibilité (Cypher l'explique et ouvre les réglages si besoin ; le
-raccourci marche dès la case cochée). Journal : ~/Library/Logs/Cypher-raccourci.log.
-Sinon, donnez un raccourci à « Cypher Console » dans Premiere Pro > Raccourcis
-clavier. Aussi dans Fenêtre > Extensions > Cypher Console.
+sécurité > Accessibilité (Mori l'explique et ouvre les réglages si besoin ; le
+raccourci marche dès la case cochée). Journal : ~/Library/Logs/Mori-raccourci.log.
+Sinon, donnez un raccourci à « Mori Console » dans Premiere Pro > Raccourcis
+clavier. Aussi dans Fenêtre > Extensions > Mori Console.
 
 Réglages > Configuration : les profils regroupent tous les réglages
 (chutiers, marqueurs, normes, apparence…) et s'exportent en un seul code
 pour configurer un poste de l'équipe.
-Réglages > Apparence : le nom affiché à côté de « Cypher » renomme aussi la
+Réglages > Apparence : le nom affiché à côté de « Mori » renomme aussi la
 fenêtre du panneau dans Premiere (au prochain démarrage de Premiere).
 Police de l'interface au choix (Urbanist, Space Grotesk, Inter, ou une police
 importée .ttf / .otf / .woff / .woff2). Le thème, la police, le nom affiché et
-les presets de thème sont partagés avec Ongaku, Sori et Kiru (%APPDATA%\CypherSuite\appearance.json) : un changement dans l'un
+les presets de thème sont partagés avec Ongaku, Sori et Kiru (%APPDATA%\MoriSuite\appearance.json) : un changement dans l'un
 des panneaux s'applique aux autres.
 
 ------------------------------------------------------------------------
@@ -67,14 +67,14 @@ INSTALLATION (quelques minutes, connexion internet nécessaire)
 Fermez Premiere Pro, décompressez le dossier, puis :
 
 WINDOWS
-  Double-cliquez sur « Installer Cypher.bat ».
+  Double-cliquez sur « Installer Mori.bat ».
 
 MAC
-  Double-cliquez sur « Installer Cypher.command ».
+  Double-cliquez sur « Installer Mori.command ».
   La première fois, macOS peut refuser d'ouvrir un script non signé :
   faites alors clic droit > Ouvrir, puis confirmez « Ouvrir ».
 
-Puis ouvrez Premiere Pro : Fenêtre > Extensions > Cypher — Studio
+Puis ouvrez Premiere Pro : Fenêtre > Extensions > Mori — Studio
 
 L'installeur fait tout, sans droits administrateur :
   - autorise le panneau dans Premiere Pro (extensions non signées) ;
@@ -87,7 +87,7 @@ L'installeur fait tout, sans droits administrateur :
     ce qui est déjà installé sur l'ordinateur est réutilisé ;
   - vérifie à la fin que chaque programme répond.
 
-Pour mettre à jour Cypher ou yt-dlp : relancez simplement l'installeur.
+Pour mettre à jour Mori ou yt-dlp : relancez simplement l'installeur.
 
 ------------------------------------------------------------------------
 BON À SAVOIR
@@ -96,6 +96,6 @@ BON À SAVOIR
   besoin, pour télécharger).
 - La lecture des captures d'écran (onglet Retours) nécessite le serveur IA
   du projet source : dans le panneau installé, collez plutôt le texte.
-- Désinstallation : supprimez le dossier com.cypher.studio.panel dans
+- Désinstallation : supprimez le dossier com.mori.studio.panel dans
   %APPDATA%\Adobe\CEP\extensions (Windows) ou
   ~/Library/Application Support/Adobe/CEP/extensions (Mac).

@@ -1,8 +1,8 @@
-ONGAKU — bibliothèque musicale pour Premiere Pro (même DA que Cypher)
+ONGAKU — bibliothèque musicale pour Premiere Pro (même DA que Mori)
 =====================================================================
 
 Ouvrir : Premiere Pro > Fenêtre > Extensions > Ongaku — Musique
-(le mode débogage CEP « PlayerDebugMode = 1 » est déjà activé sur ce poste, comme pour Cypher).
+(le mode débogage CEP « PlayerDebugMode = 1 » est déjà activé sur ce poste, comme pour Mori).
 
 ONGLET BIBLIOTHÈQUE (sections Musique et SFX)
   - Choisir la section Musique ou SFX, puis « Ajouter un dossier » directement sous le sélecteur
@@ -45,9 +45,9 @@ DOSSIERS DU PROJET (Musique / SFX)
   - Format : un MP3 est toujours exporté en WAV à sa fréquence (16 bits) ; WAV / AIFF gardent leur
     fréquence et leur résolution.
 
-APPARENCE PARTAGÉE (Cypher, Ongaku, Sori)
+APPARENCE PARTAGÉE (Mori, Ongaku, Sori)
   Thème, nom affiché, couleur du nom et presets de thème sont communs aux trois panneaux :
-  %APPDATA%\CypherSuite\appearance.json (macOS : ~/Library/Application Support/CypherSuite/).
+  %APPDATA%\MoriSuite\appearance.json (macOS : ~/Library/Application Support/MoriSuite/).
   js/suite-theme.js (identique dans les trois panneaux) ; les onglets affichés restent propres à Ongaku.
 
 PAQUETS D'INSTALLATION (Windows / macOS)

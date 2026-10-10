@@ -1,4 +1,4 @@
-﻿# Cypher — Studio : installeur Windows (lancé par « Installer Cypher.bat »)
+﻿# Mori — Studio : installeur Windows (lancé par « Installer Mori.bat »)
 # Installe le panneau et tout ce qu'il utilise, sans droits administrateur ni winget :
 #   - autorisation des extensions non signées dans Premiere Pro (CEP 9 à 14)
 #   - copie du panneau (par-dessus une version existante, sans rien supprimer)
@@ -7,12 +7,12 @@
 
 $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-$Host.UI.RawUI.WindowTitle = 'Installation de Cypher — Studio'
+$Host.UI.RawUI.WindowTitle = 'Installation de Mori — Studio'
 
 $Source = Split-Path -Parent $PSScriptRoot
-$Target = Join-Path $env:APPDATA 'Adobe\CEP\extensions\com.cypher.studio.panel'
+$Target = Join-Path $env:APPDATA 'Adobe\CEP\extensions\com.mori.studio.panel'
 $Bin = Join-Path $Target 'bin\win'
-$Temp = Join-Path $env:TEMP ("cypher-install-" + [guid]::NewGuid().ToString('N').Substring(0, 8))
+$Temp = Join-Path $env:TEMP ("mori-install-" + [guid]::NewGuid().ToString('N').Substring(0, 8))
 $Results = [ordered]@{}
 
 function Step($n, $text) { Write-Host ''; Write-Host "  [$n/5] $text" -ForegroundColor Cyan }
@@ -67,7 +67,7 @@ function Test-Tool($label, $path, $versionArgs) {
 
 if (-not $env:SUITE_AUTO) { Clear-Host }
 Write-Host ''
-Write-Host '  Cypher — Studio : installation du panneau Premiere Pro' -ForegroundColor White
+Write-Host '  Mori — Studio : installation du panneau Premiere Pro' -ForegroundColor White
 Write-Host '  ======================================================' -ForegroundColor DarkGray
 
 # 0. Premiere Pro doit être fermé : il verrouille les fichiers du panneau
@@ -94,39 +94,45 @@ try {
     Ok 'panneau déjà en place'
   } else {
     New-Item -ItemType Directory -Force -Path $Target | Out-Null
-    robocopy $Source $Target /E /NFL /NDL /NJH /NJS /NP /XD installer /XF 'Installer Cypher.bat' 'Installer Cypher.command' README.txt .debug | Out-Null
+    robocopy $Source $Target /E /NFL /NDL /NJH /NJS /NP /XD installer /XF 'Installer Mori.bat' 'Installer Mori.command' README.txt .debug | Out-Null
     if ($LASTEXITCODE -ge 8) { throw "copie impossible vers $Target (code robocopy $LASTEXITCODE)" }
     Get-ChildItem -Path $Target -Recurse -File | Unblock-File -ErrorAction SilentlyContinue
     Ok "copié dans $Target"
   }
 
-  # Ancien identifiant du panneau (com.cutflow.studio.panel, jusqu'à la v2.6.0) :
-  # réglages (chutiers, presets, thème…) et outils déjà téléchargés repris, ancien panneau retiré
-  $OldTarget = Join-Path $env:APPDATA 'Adobe\CEP\extensions\com.cutflow.studio.panel'
+  # Anciens identifiants du panneau (le plus récent d'abord : com.cypher.studio.* jusqu'à la v2.11, com.cutflow.studio.panel
+  # jusqu'à la v2.6.0) : réglages (chutiers, presets, thème, favoris de la console…) et outils déjà téléchargés
+  # repris, ancien panneau retiré
+  $OldIds = 'com.cypher.studio', 'com.cutflow.studio'
   $cepCache = Join-Path $env:TEMP 'cep_cache'
   if (Test-Path $cepCache) {
-    Get-ChildItem -Path $cepCache -Directory -Filter '*_com.cutflow.studio.panel' | ForEach-Object {
-      $newCache = Join-Path $cepCache ($_.Name -replace 'com\.cutflow\.studio\.panel$', 'com.cypher.studio.panel')
-      $oldStorage = Join-Path $_.FullName 'Local Storage'
-      if ((Test-Path $oldStorage) -and -not (Test-Path (Join-Path $newCache 'Local Storage'))) {
-        New-Item -ItemType Directory -Force -Path $newCache | Out-Null
-        Copy-Item -Recurse -Force $oldStorage $newCache
-        Ok 'réglages de l''ancienne version repris'
+    foreach ($oldId in $OldIds) {
+      Get-ChildItem -Path $cepCache -Directory | Where-Object { $_.Name -like "*_$oldId.*" } | ForEach-Object {
+        $newCache = Join-Path $cepCache $_.Name.Replace($oldId, 'com.mori.studio')
+        $oldStorage = Join-Path $_.FullName 'Local Storage'
+        if ((Test-Path $oldStorage) -and -not (Test-Path (Join-Path $newCache 'Local Storage'))) {
+          New-Item -ItemType Directory -Force -Path $newCache | Out-Null
+          Copy-Item -Recurse -Force $oldStorage $newCache
+          Ok 'réglages de l''ancienne version repris'
+        }
       }
     }
   }
   $sourceFull = (Resolve-Path $Source).Path.TrimEnd('\')
-  if ((Test-Path $OldTarget) -and -not $sourceFull.StartsWith($OldTarget, [StringComparison]::OrdinalIgnoreCase)) {
-    if (Test-Path (Join-Path $OldTarget 'app.source.tsx')) {
-      Info 'ancien dossier de développement conservé (com.cutflow.studio.panel) : supprimez-le pour éviter un doublon'
-    } else {
-      $oldBin = Join-Path $OldTarget 'bin\win'
-      if (Test-Path $oldBin) {
-        New-Item -ItemType Directory -Force -Path $Bin | Out-Null
-        Get-ChildItem -Path $oldBin -File | Where-Object { -not (Test-Path (Join-Path $Bin $_.Name)) } | Move-Item -Destination $Bin
+  foreach ($oldId in $OldIds) {
+    $OldTarget = Join-Path $env:APPDATA "Adobe\CEP\extensions\$oldId.panel"
+    if ((Test-Path $OldTarget) -and -not $sourceFull.StartsWith($OldTarget, [StringComparison]::OrdinalIgnoreCase)) {
+      if (Test-Path (Join-Path $OldTarget 'app.source.tsx')) {
+        Info "ancien dossier de développement conservé ($oldId.panel) : supprimez-le pour éviter un doublon"
+      } else {
+        $oldBin = Join-Path $OldTarget 'bin\win'
+        if (Test-Path $oldBin) {
+          New-Item -ItemType Directory -Force -Path $Bin | Out-Null
+          Get-ChildItem -Path $oldBin -File | Where-Object { -not (Test-Path (Join-Path $Bin $_.Name)) } | Move-Item -Destination $Bin
+        }
+        Remove-Item -Recurse -Force $OldTarget
+        Ok 'ancienne version du panneau retirée (outils conservés)'
       }
-      Remove-Item -Recurse -Force $OldTarget
-      Ok 'ancienne version du panneau retirée (outils conservés)'
     }
   }
   New-Item -ItemType Directory -Force -Path $Bin, $Temp | Out-Null
@@ -188,7 +194,7 @@ try {
 } catch {
   Write-Host ''
   Fail $_.Exception.Message
-  Write-Host '        Vérifiez la connexion internet puis relancez « Installer Cypher.bat ».' -ForegroundColor Yellow
+  Write-Host '        Vérifiez la connexion internet puis relancez « Installer Mori.bat ».' -ForegroundColor Yellow
   Finish 1
 }
 
@@ -199,5 +205,5 @@ if ($Results.Values -contains $false) {
 } else {
   Write-Host '  Installation terminée : tout est prêt.' -ForegroundColor Green
 }
-Write-Host '  Ouvrez Premiere Pro puis : Fenêtre > Extensions > Cypher — Studio' -ForegroundColor White
+Write-Host '  Ouvrez Premiere Pro puis : Fenêtre > Extensions > Mori — Studio' -ForegroundColor White
 Finish 0

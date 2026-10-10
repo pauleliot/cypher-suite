@@ -1360,7 +1360,7 @@ export function sameBinSetup(a: BinRule[], b: BinRule[]): boolean {
 }
 /** Code d'export (JSON lisible, à coller dans « Importer » chez un collègue) */
 export function exportBinPresetCode(name: string, rules: BinRule[], musicThreshold: number): string {
-    return JSON.stringify({ cypherBins: 1, name, musicThreshold, rules: portableBinRules(rules) });
+    return JSON.stringify({ moriBins: 1, name, musicThreshold, rules: portableBinRules(rules) });
 }
 export function parseBinPresetCode(code: string): BinPreset {
     let data: any;
@@ -2310,7 +2310,7 @@ export function reconcileWithTimeline(
     if (!hit) {
       if (m.pproGuid && m.pproSeqId === seqId) {
         if (m.isResolved && resolvedAction === 'delete') {
-          // retiré de la timeline par Cypher lui-même : le retour reste, le lien est oublié
+          // retiré de la timeline par Mori lui-même : le retour reste, le lien est oublié
           const { pproGuid, pproSeqId, pproOwner, ...rest } = m;
           next.push(rest as ReviewMarker);
           changed = true;
@@ -2504,7 +2504,7 @@ function nodeRequire(name: string): any {
   const mainModule = n?.process?.mainModule;
   const req =
     (n && typeof n.require === 'function' && n.require) ||
-    (typeof w.__cypherRequire === 'function' && w.__cypherRequire) ||
+    (typeof w.__moriRequire === 'function' && w.__moriRequire) ||
     (mainModule && typeof mainModule.require === 'function' && mainModule.require.bind(mainModule)) ||
     (typeof w.require === 'function' && w.require);
   return req ? req(name) : null;
@@ -2525,8 +2525,8 @@ export function isWindowsPlatform(): boolean {
 
 /** Dossier de l'extension, déduit de l'URL de index.html */
 function extensionRoot(): string {
-  // Cypher Checker (servi par cypher://) : dossier réel fourni par la page
-  const declared = (window as any).__cypherRoot;
+  // Mori Checker (servi par mori://) : dossier réel fourni par la page
+  const declared = (window as any).__moriRoot;
   if (typeof declared === 'string' && declared) return declared;
   let p = decodeURIComponent(new URL('.', location.href).pathname);
   if (isWindowsPlatform()) p = p.replace(/^\/([A-Za-z]:)/, '$1').replace(/\//g, '\\');
@@ -2536,7 +2536,7 @@ function extensionRoot(): string {
 /** Nom de la fenêtre du panneau dans Premiere (onglet, Fenêtre > Extensions) pour un nom affiché donné */
 export function panelWindowName(label: string): string {
   const l = String(label || '').trim();
-  return l ? `Cypher — ${l}` : 'Cypher';
+  return l ? `Mori — ${l}` : 'Mori';
 }
 
 /**
@@ -2546,7 +2546,7 @@ export function panelWindowName(label: string): string {
 export function writePanelWindowName(label: string): 'changed' | 'same' | 'unavailable' | 'error' {
   const fs = nodeRequire('fs');
   const pathMod = nodeRequire('path');
-  if (!fs || !pathMod || !isRunningInPremiere() || (window as any).__cypherRoot) return 'unavailable';
+  if (!fs || !pathMod || !isRunningInPremiere() || (window as any).__moriRoot) return 'unavailable';
   try {
     const file = pathMod.join(extensionRoot(), 'CSXS', 'manifest.xml');
     const xml = String(fs.readFileSync(file, 'utf8'));
@@ -2969,7 +2969,7 @@ export async function importIntoActiveBin(filePath: string): Promise<{ success: 
 /** Chemins locaux des fichiers glissés dans le panneau (File.path, sinon liste d'URI file://) */
 export function pathsFromDrop(dt: DataTransfer): string[] {
   const out: string[] = [];
-  const pathOf = (window as any).__cypherPathForFile;
+  const pathOf = (window as any).__moriPathForFile;
   for (const f of Array.from(dt.files || [])) {
     const p = (f as any).path || (typeof pathOf === 'function' ? pathOf(f) : '');
     if (p) out.push(p);
@@ -3361,7 +3361,7 @@ export function loadWaveform(
   const os = nodeRequire('os');
   const pathMod = nodeRequire('path');
   const cp = nodeRequire('child_process');
-  const dir = pathMod.join(os.tmpdir(), 'cypher-waveform');
+  const dir = pathMod.join(os.tmpdir(), 'mori-waveform');
   try {
     fs.mkdirSync(dir, { recursive: true });
   } catch {}
@@ -3372,7 +3372,7 @@ export function loadWaveform(
     ytdlp,
     [
       '-f', 'wa[acodec!=none]/ba', '-N', '8', '--no-playlist', '--no-warnings', '--quiet', '--progress', '--newline', '--encoding', 'utf-8',
-      '-P', dir, '-o', `%(id)s-wave-${Date.now()}.%(ext)s`, '--print', 'after_move:CYPHER_FILE:%(filepath)s',
+      '-P', dir, '-o', `%(id)s-wave-${Date.now()}.%(ext)s`, '--print', 'after_move:MORI_FILE:%(filepath)s',
       ...bundledDenoArgs(), '--ffmpeg-location', pathMod.dirname(ffmpeg), url,
     ],
     (ratio) => !canceled && onUpdate(new Float32Array(0), 'download', ratio)
@@ -3850,7 +3850,7 @@ export function buildYtdlpArgs(
     '--no-playlist', '--no-warnings', '--quiet', '--progress', '--newline', '--windows-filenames', '--encoding', 'utf-8',
     '-P', outputDir,
     '-o', `%(title).120B [%(id)s]${sectionLabel}.%(ext)s`,
-    '--print', 'after_move:CYPHER_FILE:%(filepath)s',
+    '--print', 'after_move:MORI_FILE:%(filepath)s',
     ...bundledDenoArgs(),
   ];
   if (ffmpegPath) args.push('--ffmpeg-location', pathMod.dirname(ffmpegPath));
@@ -3884,8 +3884,8 @@ export function runYtdlp(ytdlp: string, args: string[], onProgress: (ratio: numb
   let step = 1;
   let lastRatio = 0;
   const handleLine = (line: string) => {
-    if (line.startsWith('CYPHER_FILE:')) {
-      finalPath = line.slice('CYPHER_FILE:'.length).trim();
+    if (line.startsWith('MORI_FILE:')) {
+      finalPath = line.slice('MORI_FILE:'.length).trim();
       return;
     }
     const m = line.match(/\[download\]\s+([\d.]+)%/);
@@ -3996,6 +3996,21 @@ export function normalizeHex(value: string): string | null {
   return /^[0-9a-f]{6}$/.test(v) ? `#${v}` : null;
 }
 
+/**
+ * Code couleur trouvé dans un texte tapé ou collé : « #E50914 », « E50914 », « rgb(229, 9, 20) », « 229, 9, 20 »,
+ * ou un code au milieu d'une phrase (« Fond : #141414 ») -> '#e50914' ; null si aucun
+ */
+export function colorFromText(value: string): string | null {
+  const direct = normalizeHex(value);
+  if (direct) return direct;
+  const rgb = value.match(/(\d{1,3})\s*[,;\s]\s*(\d{1,3})\s*[,;\s]\s*(\d{1,3})/);
+  if (rgb && rgb.slice(1).every((n) => +n <= 255)) {
+    return `#${rgb.slice(1).map((n) => (+n).toString(16).padStart(2, '0')).join('')}`;
+  }
+  const hex = value.match(/#([0-9a-f]{6}|[0-9a-f]{3})(?![0-9a-f])/i) || value.match(/(?:^|[^0-9a-z])([0-9a-f]{6})(?![0-9a-z])/i);
+  return hex ? normalizeHex(hex[1]) : null;
+}
+
 function hexToRgb(hex: string): [number, number, number] {
   const v = (normalizeHex(hex) || '#000000').slice(1);
   return [parseInt(v.slice(0, 2), 16), parseInt(v.slice(2, 4), 16), parseInt(v.slice(4, 6), 16)];
@@ -4039,7 +4054,7 @@ export function applyTheme(theme: ThemeColors) {
 
 /**
  * Apparence partagée avec Ongaku et Sori (vendor/suite-theme.js) : thème, nom affiché, couleur du nom et
- * presets sont lus / écrits dans %APPDATA%\CypherSuite\appearance.json. Les onglets restent propres à Cypher.
+ * presets sont lus / écrits dans %APPDATA%\MoriSuite\appearance.json. Les onglets restent propres à Mori.
  */
 type SharedAppearance = Pick<AppearanceSettings, 'theme' | 'brandLabel' | 'brandColor' | 'userPresets'>;
 interface SuiteThemeApi {
@@ -4085,13 +4100,13 @@ export function saveAppearance(settings: AppearanceSettings) {
     localStorage.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify({ ...settings, knownTabs: ALL_TABS }));
   } catch {}
   // n'écrit que si les valeurs partagées ont changé (crée le fichier au premier lancement)
-  try { suiteTheme()?.write(settings, 'Cypher'); } catch {}
+  try { suiteTheme()?.write(settings, 'Mori'); } catch {}
 }
 
 /** Code d'export d'un preset (JSON lisible, à coller dans « Importer ») */
 export function exportPresetCode(preset: Omit<ThemePreset, 'id' | 'builtIn'>): string {
   const { name, background, accent, primary, brandColor } = preset;
-  return JSON.stringify({ cypherTheme: 1, name, background, accent, primary, brandColor });
+  return JSON.stringify({ moriTheme: 1, name, background, accent, primary, brandColor });
 }
 
 export function parsePresetCode(code: string): ThemePreset {
@@ -4177,10 +4192,10 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-8 h-8 rounded-lg bg-cream-300 flex items-center justify-center flex-shrink-0 shadow">
-              <img src="./assets/logo.png" alt="Cypher" draggable={false} className="w-6 h-6" />
+              <img src="./assets/logo.png" alt="Mori" draggable={false} className="w-6 h-6" />
             </div>
             <div className="flex items-baseline gap-2 min-w-0">
-              <span className="font-extrabold text-lg tracking-tight text-cream-300 leading-none">Cypher</span>
+              <span className="font-extrabold text-lg tracking-tight text-cream-300 leading-none">Mori</span>
               {brandLabel && (
                 <span className="font-semibold text-sm leading-none truncate" style={{ color: brandColor }}>
                   {brandLabel}
@@ -4946,7 +4961,7 @@ export const VideoTranscoder: React.FC = () => {
         {!nodeOk ? (
           <StatusMessage
             isError
-            message="Redémarrez Premiere Pro pour terminer l'installation de Cypher : cet outil sera disponible ensuite."
+            message="Redémarrez Premiere Pro pour terminer l'installation de Mori : cet outil sera disponible ensuite."
           />
         ) : !tools ? (
           <div className="space-y-2">
@@ -5492,12 +5507,12 @@ export const WebDownloader: React.FC = () => {
     <div className="space-y-3">
       <section className="rounded-2xl border border-white/10 bg-zinc-900/50 p-4 space-y-3">
         {!nodeOk ? (
-          <StatusMessage isError message="Redémarrez Premiere Pro pour terminer l'installation de Cypher : cet outil sera disponible ensuite." />
+          <StatusMessage isError message="Redémarrez Premiere Pro pour terminer l'installation de Mori : cet outil sera disponible ensuite." />
         ) : !ytdlp ? (
           <div className="space-y-2">
             <StatusMessage
               isError
-              message="yt-dlp est introuvable. Relancez l'installeur de Cypher (il l'installe), ou indiquez son emplacement."
+              message="yt-dlp est introuvable. Relancez l'installeur de Mori (il l'installe), ou indiquez son emplacement."
             />
             <button onClick={handleChooseYtdlp} className={`w-full ${ghostButton}`}>
               <FolderOpen className="w-3.5 h-3.5" />
@@ -5920,7 +5935,7 @@ export function saveDeliveryPresets(presets: DeliveryPreset[]) {
 }
 export function exportDeliveryPresetCode(preset: DeliveryPreset): string {
   const { id, builtIn, ...rest } = preset;
-  return JSON.stringify({ cypherNorm: 1, ...rest });
+  return JSON.stringify({ moriNorm: 1, ...rest });
 }
 export function parseDeliveryPresetCode(code: string): DeliveryPreset {
   let data: any;
@@ -5929,7 +5944,7 @@ export function parseDeliveryPresetCode(code: string): DeliveryPreset {
   } catch {
     throw new Error('code illisible : collez le texte obtenu avec « Exporter »');
   }
-  if (!data || data.cypherNorm !== 1) throw new Error('ce code ne contient pas de norme Cypher');
+  if (!data || data.moriNorm !== 1) throw new Error('ce code ne contient pas de norme Mori');
   const preset: any = { ...EMPTY_PRESET, id: `norm-${Date.now()}`, name: String(data.name || 'Norme importée').slice(0, 60) };
   for (const key of Object.keys(EMPTY_PRESET)) {
     const def = (EMPTY_PRESET as any)[key];
@@ -6392,7 +6407,7 @@ async function measureSequenceLoudness(preset: DeliveryPreset, onStep: (text: st
   if (!tools) return [{ id: 'loudness', label: 'Loudness', status: 'info', summary: 'FFmpeg introuvable : mesure impossible' }];
   const os = nodeRequire('os');
   const pathMod = nodeRequire('path');
-  const wav = pathMod.join(os.tmpdir(), `cypher-mix-${Date.now()}.wav`);
+  const wav = pathMod.join(os.tmpdir(), `mori-mix-${Date.now()}.wav`);
   const script = `
     (function() {
       var seq = app.project.activeSequence;
@@ -6979,7 +6994,7 @@ function wrapPdfText(text: string, size: number, maxWidth: number, bold = false)
 }
 
 export interface PdfReportMeta {
-  product: string; // « Cypher Checker 1.0.0 »
+  product: string; // « Mori Checker 1.0.0 »
   file?: string; // chemin complet du fichier vérifié
   preset?: string;
   date?: Date;
@@ -7088,7 +7103,7 @@ export function buildPdfReport(title: string, results: CheckResult[], meta: PdfR
   return bytes;
 }
 
-/** Écrit un fichier binaire (Node dans Premiere / Cypher Checker) */
+/** Écrit un fichier binaire (Node dans Premiere / Mori Checker) */
 function writeBinaryFile(path: string, bytes: Uint8Array) {
   const fs = nodeRequire('fs');
   const B = (window as any).cep_node?.Buffer;
@@ -7354,7 +7369,7 @@ const PAD_GROUPS: { id: keyof PadCheckGroups; label: string; title: string }[] =
 export const DeliveryChecker: React.FC<{
   presets: DeliveryPreset[];
   onOpenSettings: () => void;
-  /** Cypher Checker hors Premiere : seul le contrôle de fichier PAD est proposé */
+  /** Mori Checker hors Premiere : seul le contrôle de fichier PAD est proposé */
   standalone?: boolean;
   /** fichier à analyser dès que FFmpeg est trouvé (fichier déposé sur l'icône de l'application) */
   initialFile?: string;
@@ -7389,7 +7404,7 @@ export const DeliveryChecker: React.FC<{
 
   const preset = presets.find((p) => p.id === presetId) || presets[0];
   const insidePremiere = isRunningInPremiere();
-  const productLabel = standalone ? `Cypher Checker ${CHECKER_VERSION}` : `Cypher Studio ${APP_VERSION}`;
+  const productLabel = standalone ? `Mori Checker ${CHECKER_VERSION}` : `Mori Studio ${APP_VERSION}`;
 
   useEffect(() => {
     if (nodeOk) setTools(findFfmpegTools());
@@ -7426,7 +7441,7 @@ export const DeliveryChecker: React.FC<{
 
   const handlePadCheck = (file: string) =>
     run(async () => {
-      if (!tools) throw new Error('FFmpeg introuvable : installez-le avec l’installeur Cypher');
+      if (!tools) throw new Error('FFmpeg introuvable : installez-le avec l’installeur Mori');
       if (!preset) throw new Error('aucune norme : créez-en une dans Réglages > Normes');
       setReport(null);
       const results = await checkDeliveryFile(tools, file, preset, groups, (text, ratio) => setStep({ text, ratio }));
@@ -7446,7 +7461,7 @@ export const DeliveryChecker: React.FC<{
 
   const handleBatch = (files: string[]) =>
     run(async () => {
-      if (!tools) throw new Error('FFmpeg introuvable : installez-le avec l’installeur Cypher');
+      if (!tools) throw new Error('FFmpeg introuvable : installez-le avec l’installeur Mori');
       if (!preset) throw new Error('aucune norme : créez-en une dans Réglages > Normes');
       const items: BatchItem[] = files.map((path) => ({ path, name: path.split(/[\\/]/).pop() || path, state: 'pending' }));
       setBatch(items);
@@ -7469,7 +7484,7 @@ export const DeliveryChecker: React.FC<{
           let pdfError: string | undefined;
           if (batchPdf) {
             try {
-              pdf = items[i].path.replace(/\.[^.\\/]+$/, '') + ' - Rapport Cypher.pdf';
+              pdf = items[i].path.replace(/\.[^.\\/]+$/, '') + ' - Rapport Mori.pdf';
               writeBinaryFile(pdf, buildPdfReport(`${items[i].name} · ${preset.name}`, results, { product: productLabel, file: items[i].path, preset: preset.name }));
             } catch (err: any) {
               pdf = undefined;
@@ -7491,7 +7506,7 @@ export const DeliveryChecker: React.FC<{
           const now = new Date();
           const two = (n: number) => String(n).padStart(2, '0');
           const stamp = `${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())} ${two(now.getHours())}h${two(now.getMinutes())}`;
-          recap = `${folder}${sep}Récap Cypher ${stamp}.csv`;
+          recap = `${folder}${sep}Récap Mori ${stamp}.csv`;
           nodeRequire('fs').writeFileSync(recap, '\uFEFF' + batchRecapCsv(items, preset.name), 'utf8');
         } catch {
           recap = '';
@@ -7513,7 +7528,7 @@ export const DeliveryChecker: React.FC<{
       try {
         if (fs && pathMod && fs.statSync(p).isDirectory()) {
           for (const f of fs.readdirSync(p).sort((a: string, b: string) => a.localeCompare(b))) {
-            if (PAD_FILE_RE.test(f) && !/ - Rapport Cypher\.pdf$/i.test(f)) out.push(pathMod.join(p, f));
+            if (PAD_FILE_RE.test(f) && !/ - Rapport Mori\.pdf$/i.test(f)) out.push(pathMod.join(p, f));
           }
           continue;
         }
@@ -7548,14 +7563,14 @@ export const DeliveryChecker: React.FC<{
       if (res.err === 0 && Array.isArray(res.data) && res.data[0]) onDropFile(res.data);
       return;
     }
-    // hors Premiere (Cypher Checker) : sélecteur de fichiers (ou de dossier) du système
+    // hors Premiere (Mori Checker) : sélecteur de fichiers (ou de dossier) du système
     const input = document.createElement('input');
     input.type = 'file';
     if (folder) (input as any).webkitdirectory = true;
     else input.accept = PAD_EXTENSIONS.map((e) => '.' + e).join(',');
     input.multiple = batchMode || folder;
     input.onchange = () => {
-      const pathOf = (window as any).__cypherPathForFile;
+      const pathOf = (window as any).__moriPathForFile;
       const paths = Array.from(input.files || [])
         .map((f) => (f as any).path || (typeof pathOf === 'function' ? pathOf(f) : ''))
         .filter(Boolean);
@@ -7696,14 +7711,14 @@ export const DeliveryChecker: React.FC<{
               {batchMode && (
                 <label
                   className="flex items-center gap-2 cursor-pointer select-none"
-                  title="« <nom> - Rapport Cypher.pdf » à côté de chaque fichier, et un récap CSV dans le dossier"
+                  title="« <nom> - Rapport Mori.pdf » à côté de chaque fichier, et un récap CSV dans le dossier"
                 >
                   <input type="checkbox" checked={batchPdf} onChange={(e) => setBatchPdf(e.target.checked)} disabled={busy} className="accent-emerald-400 w-3.5 h-3.5 cursor-pointer" />
                   Rapports PDF à côté des fichiers
                 </label>
               )}
             </div>
-            {!tools && nodeOk && <StatusMessage isError message="FFmpeg introuvable : relancez l'installeur Cypher." />}
+            {!tools && nodeOk && <StatusMessage isError message="FFmpeg introuvable : relancez l'installeur Mori." />}
             <div className="flex flex-wrap justify-center gap-1.5">
               {PAD_GROUPS.map((g) => (
                 <button
@@ -7813,7 +7828,7 @@ export const DeliveryChecker: React.FC<{
               <button
                 onClick={() => {
                   try {
-                    saveTextFile('\uFEFF' + batchRecapCsv(batch, preset?.name || ''), 'Récap Cypher.csv', 'csv', 'Enregistrer le récap du lot');
+                    saveTextFile('\uFEFF' + batchRecapCsv(batch, preset?.name || ''), 'Récap Mori.csv', 'csv', 'Enregistrer le récap du lot');
                   } catch {}
                 }}
                 className="flex items-center gap-1 text-[11px] text-zinc-400 hover:text-cream-300 cursor-pointer"
@@ -8045,7 +8060,7 @@ const NormsSettings: React.FC<{ presets: DeliveryPreset[]; onChange: (presets: D
             value={importCode}
             onChange={(e) => setImportCode(e.target.value)}
             rows={3}
-            placeholder='Collez un code de norme : {"cypherNorm":1,"name":…}'
+            placeholder='Collez un code de norme : {"moriNorm":1,"name":…}'
             className="w-full bg-zinc-950 border border-zinc-800 rounded px-2 py-1 text-[10px] font-mono text-zinc-200 resize-none focus:outline-none focus:border-emerald-500"
           />
           {importError && <p className="text-[11px] text-red-400">{importError}</p>}
@@ -8250,7 +8265,7 @@ export function sameProfileCategory(cat: ProfileCategory, a: ProfileData, b: Pro
 }
 
 export function exportProfileCode(name: string, data: ProfileData): string {
-  return JSON.stringify({ cypherProfile: 1, name, data });
+  return JSON.stringify({ moriProfile: 1, name, data });
 }
 
 /** Lecture d'un code de profil ; chaque catégorie est vérifiée, une catégorie illisible est remplacée par ses valeurs par défaut */
@@ -8261,14 +8276,14 @@ export function parseProfileCode(code: string): Profile {
   } catch {
     throw new Error('code illisible : collez le texte obtenu avec « Exporter »');
   }
-  if (!raw || raw.cypherProfile !== 1 || !raw.data) throw new Error('ce code ne contient pas de profil Cypher');
+  if (!raw || raw.moriProfile !== 1 || !raw.data) throw new Error('ce code ne contient pas de profil Mori');
   const d = raw.data;
   const stamp = Date.now();
   // les chutiers passent par le lecteur des presets de chutiers (noms, rôles, extensions, mots-clés, sous-chutiers)
   const binsFrom = (rules: any, threshold: any) => {
     try {
       return Array.isArray(rules) && rules.length
-        ? parseBinPresetCode(JSON.stringify({ cypherBins: 1, name: 'x', musicThreshold: threshold, rules: portableBinRules(rules.filter((r: any) => r && r.binName)) }))
+        ? parseBinPresetCode(JSON.stringify({ moriBins: 1, name: 'x', musicThreshold: threshold, rules: portableBinRules(rules.filter((r: any) => r && r.binName)) }))
         : null;
     } catch {
       return null;
@@ -8299,7 +8314,7 @@ export function parseProfileCode(code: string): Profile {
           }))
       : defaultMarkerCategories(),
     deliveryPresets: Array.isArray(d.deliveryPresets) && d.deliveryPresets.length
-      ? d.deliveryPresets.map((p: any, i: number) => ({ ...parseDeliveryPresetCode(JSON.stringify({ ...p, cypherNorm: 1 })), id: `norm-${stamp}-${i}`, builtIn: false }))
+      ? d.deliveryPresets.map((p: any, i: number) => ({ ...parseDeliveryPresetCode(JSON.stringify({ ...p, moriNorm: 1 })), id: `norm-${stamp}-${i}`, builtIn: false }))
       : DEFAULT_DELIVERY_PRESETS.map((p) => ({ ...p })),
     appearance: {
       theme: {
@@ -8502,7 +8517,7 @@ const ProfilesSection: React.FC<{ current: ProfileData; onApply: (data: ProfileD
             value={importCode}
             onChange={(e) => setImportCode(e.target.value)}
             rows={3}
-            placeholder='Collez un code de profil : {"cypherProfile":1,"name":…}'
+            placeholder='Collez un code de profil : {"moriProfile":1,"name":…}'
             className="w-full bg-zinc-950 border border-zinc-800 rounded px-2 py-1 text-[10px] font-mono text-zinc-200 resize-none focus:outline-none focus:border-emerald-500"
           />
           {importError && <p className="text-[11px] text-red-400">{importError}</p>}
@@ -8562,12 +8577,24 @@ const HexColorField: React.FC<{ label: string; value: string; onChange: (hex: st
         value={text}
         onChange={(e) => {
           setText(e.target.value);
-          const hex = normalizeHex(e.target.value);
+          const hex = colorFromText(e.target.value);
           if (hex) onChange(hex);
+        }}
+        // clic : tout le code est sélectionné, un collage ou une frappe le remplace
+        onFocus={(e) => e.target.select()}
+        // collage : le code collé remplace toujours l'ancien, où que soit le curseur
+        onPaste={(e) => {
+          const hex = colorFromText(e.clipboardData.getData('text'));
+          if (!hex) return;
+          e.preventDefault();
+          setText(hex);
+          onChange(hex);
         }}
         onBlur={() => setText(value)}
         spellCheck={false}
-        className="w-20 bg-zinc-900 border border-zinc-800 rounded px-2 py-0.5 text-[11px] font-mono text-zinc-200 focus:outline-none focus:border-emerald-500"
+        placeholder="#RRGGBB"
+        title="Tapez ou collez un code couleur : #E50914, E50914 ou rgb(229, 9, 20)"
+        className="w-24 bg-zinc-900 border border-zinc-800 rounded px-2 py-0.5 text-[11px] font-mono text-zinc-200 focus:outline-none focus:border-emerald-500"
       />
     </div>
   );
@@ -9161,7 +9188,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       value={binImportCode}
                       onChange={(e) => setBinImportCode(e.target.value)}
                       rows={3}
-                      placeholder='Collez un code de preset : {"cypherBins":1,"name":…}'
+                      placeholder='Collez un code de preset : {"moriBins":1,"name":…}'
                       className="w-full bg-zinc-950 border border-zinc-800 rounded px-2 py-1 text-[10px] font-mono text-zinc-200 resize-none focus:outline-none focus:border-emerald-500"
                     />
                     {binImportError && <p className="text-[11px] text-red-400">{binImportError}</p>}
@@ -9688,7 +9715,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       value={importCode}
                       onChange={(e) => setImportCode(e.target.value)}
                       rows={2}
-                      placeholder='Collez un code de preset : {"cypherTheme":1,"name":…}'
+                      placeholder='Collez un code de preset : {"moriTheme":1,"name":…}'
                       className="w-full bg-zinc-950 border border-zinc-800 rounded px-2 py-1 text-[10px] font-mono text-zinc-200 resize-none focus:outline-none focus:border-emerald-500"
                     />
                     {importError && <p className="text-[11px] text-red-400">{importError}</p>}
@@ -9715,7 +9742,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               {/* Nom affiché */}
               <div className="space-y-2">
-                <h3 className="font-bold text-white text-xs">Nom affiché à côté de Cypher</h3>
+                <h3 className="font-bold text-white text-xs">Nom affiché à côté de Mori</h3>
                 <div className="rounded-lg bg-zinc-950 border border-zinc-800 p-2.5 space-y-2">
                   <input
                     type="text"
@@ -10528,7 +10555,7 @@ export const ReviewMarkersHub: React.FC<ReviewMarkersHubProps> = ({ currentFrame
 
   const toggleSync = (on: boolean) => {
     if (on) {
-      if (!isNodeAvailable()) return setSyncInfo({ isError: true, message: "Redémarrez Premiere Pro pour terminer l'installation de Cypher." });
+      if (!isNodeAvailable()) return setSyncInfo({ isError: true, message: "Redémarrez Premiere Pro pour terminer l'installation de Mori." });
       if (!sync.folder) return setSyncInfo({ isError: true, message: 'Choisissez d\'abord le dossier où arrivent les CSV.' });
       markExistingAsSeen(sync.folder);
       setSyncInfo({ message: `Synchro active : les CSV déposés dans ce dossier seront posés sur la timeline.` });
@@ -11120,10 +11147,10 @@ export default function App() {
   // le lance aussi, au cas où Premiere n'aurait pas démarré cette fenêtre (une seule instance active, voir le script)
   useEffect(() => {
     if (!isRunningInPremiere()) return;
-    const start = () => (window as any).CypherHotkey?.start();
-    if ((window as any).CypherHotkey) return void start();
+    const start = () => (window as any).MoriHotkey?.start();
+    if ((window as any).MoriHotkey) return void start();
     const tag = document.createElement('script');
-    tag.src = './vendor/cypher-hotkey.js';
+    tag.src = './vendor/mori-hotkey.js';
     tag.onload = start;
     document.head.appendChild(tag);
   }, []);
@@ -11152,9 +11179,9 @@ export default function App() {
     return suite.watch((shared) => setAppearance((a) => ({ ...a, ...shared })));
   }, []);
 
-  // Nom de la fenêtre : « Cypher — <nom affiché> » (« Cypher » si vide). Premiere ne renomme pas un panneau
+  // Nom de la fenêtre : « Mori — <nom affiché> » (« Mori » si vide). Premiere ne renomme pas un panneau
   // ouvert : le nom est écrit dans le manifeste et s'affiche au prochain démarrage. Réécrit aussi à chaque
-  // ouverture, pour survivre à une mise à jour de Cypher (l'installeur remet le manifeste d'origine).
+  // ouverture, pour survivre à une mise à jour de Mori (l'installeur remet le manifeste d'origine).
   useEffect(() => {
     const title = panelWindowName(appearance.brandLabel);
     document.title = title;
@@ -11289,7 +11316,7 @@ export default function App() {
           className={`w-1.5 h-1.5 rounded-full ${isRunningInPremiere() ? 'bg-green-400' : 'bg-zinc-500'}`}
           title={isRunningInPremiere() ? 'Connecté à Premiere Pro' : 'Hors de Premiere Pro'}
         />
-        <AboutCypher />
+        <AboutMori />
         {appearance.brandLabel &&<span style={{ color: appearance.brandColor }}>{appearance.brandLabel}</span>}
         {isRunningInPremiere() && currentProjectName && (
           <>
@@ -11307,15 +11334,15 @@ export default function App() {
 }
 
 
-// ==================== components/AboutCypher.tsx ====================
+// ==================== components/AboutMori.tsx ====================
 
 /** Version affichée dans « À propos » : à garder alignée sur CSXS/manifest.xml */
-const APP_VERSION = '2.11.1';
-/** Version de Cypher Checker (application autonome) : à garder alignée sur checker/package.json */
+const APP_VERSION = '2.12.0';
+/** Version de Mori Checker (application autonome) : à garder alignée sur checker/package.json */
 const CHECKER_VERSION = '1.2.0';
 
-/** « Cypher » de la barre d'état : souligné au survol, ouvre la fiche « À propos » au clic */
-function AboutCypher({ product = '', version = APP_VERSION }: { product?: string; version?: string }) {
+/** « Mori » de la barre d'état : souligné au survol, ouvre la fiche « À propos » au clic */
+function AboutMori({ product = '', version = APP_VERSION }: { product?: string; version?: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
 
@@ -11340,15 +11367,15 @@ function AboutCypher({ product = '', version = APP_VERSION }: { product?: string
         onClick={() => setOpen(!open)}
         className={`font-semibold text-cream-300 underline-offset-2 decoration-cream-300/70 hover:underline cursor-pointer ${open ? 'underline' : ''}`}
       >
-        Cypher
+        Mori
       </button>
       {open && (
         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-56 rounded-xl border border-white/10 bg-zinc-900 shadow-2xl shadow-black/50 px-4 py-4 text-center z-50">
           <div className="mx-auto mb-2.5 w-12 h-12 rounded-xl bg-cream-300 flex items-center justify-center shadow">
-            <img src="./assets/logo.png" alt="Cypher" draggable={false} className="w-9 h-9" />
+            <img src="./assets/logo.png" alt="Mori" draggable={false} className="w-9 h-9" />
           </div>
           <div className="flex items-baseline justify-center gap-1.5">
-            <span className="font-extrabold text-base text-cream-300">Cypher{product ? ` ${product}` : ''}</span>
+            <span className="font-extrabold text-base text-cream-300">Mori{product ? ` ${product}` : ''}</span>
             <span className="text-[10px] text-zinc-400">{version}</span>
           </div>
           <p className="mt-1 text-xs text-zinc-200">
@@ -11364,7 +11391,7 @@ function AboutCypher({ product = '', version = APP_VERSION }: { product?: string
 }
 
 
-// ==================== CheckerApp.tsx (Cypher Checker, hors Premiere) ====================
+// ==================== CheckerApp.tsx (Mori Checker, hors Premiere) ====================
 
 function CheckerApp() {
   const [presets, setPresets] = useState<DeliveryPreset[]>(loadDeliveryPresets);
@@ -11379,7 +11406,7 @@ function CheckerApp() {
   })();
 
   useEffect(() => {
-    document.title = 'Cypher Checker';
+    document.title = 'Mori Checker';
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setNormsOpen(false);
     document.addEventListener('keydown', onKey);
     // un fichier lâché hors de la zone de dépôt ne doit pas remplacer la page
@@ -11398,9 +11425,9 @@ function CheckerApp() {
       <header className="bg-ink/95 backdrop-blur border-b border-white/10 sticky top-0 z-40 px-4 py-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-8 h-8 rounded-lg bg-cream-300 flex items-center justify-center flex-shrink-0 shadow">
-            <img src="./assets/logo.png" alt="Cypher" draggable={false} className="w-6 h-6" />
+            <img src="./assets/logo.png" alt="Mori" draggable={false} className="w-6 h-6" />
           </div>
-          <span className="font-extrabold text-lg tracking-tight text-cream-300 leading-none">Cypher</span>
+          <span className="font-extrabold text-lg tracking-tight text-cream-300 leading-none">Mori</span>
           <span className="font-semibold text-sm leading-none text-emerald-300">Checker</span>
         </div>
         <button
@@ -11437,7 +11464,7 @@ function CheckerApp() {
       )}
 
       <footer className="border-t border-white/10 py-2 px-3 text-[11px] text-zinc-400 flex items-center justify-center gap-1.5">
-        <AboutCypher product="Checker" version={CHECKER_VERSION} />
+        <AboutMori product="Checker" version={CHECKER_VERSION} />
         <span>·</span>
         <span>contrôle des fichiers de livraison</span>
       </footer>
@@ -11453,8 +11480,8 @@ import { createRoot } from 'react-dom/client';
 
 const container = document.getElementById('root');
 const root = createRoot(container);
-// checker.html (Cypher Checker, application autonome) déclare window.__cypherMode = 'checker'
-const RootComponent = (window as any).__cypherMode === 'checker' ? CheckerApp : App;
+// checker.html (Mori Checker, application autonome) déclare window.__moriMode = 'checker'
+const RootComponent = (window as any).__moriMode === 'checker' ? CheckerApp : App;
 root.render(
   React.createElement(React.StrictMode, null, React.createElement(RootComponent, null))
 );

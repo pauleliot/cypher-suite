@@ -1,4 +1,4 @@
-SORI — éditeur de courbes d'animation pour Premiere Pro (même DA que Cypher et Ongaku)
+SORI — éditeur de courbes d'animation pour Premiere Pro (même DA que Mori et Ongaku)
 =====================================================================================
 
 Ouvrir : Premiere Pro > Fenêtre > Extensions > Sori — Courbes
@@ -52,13 +52,13 @@ ONGLET BIBLIOTHÈQUE
   - Import : cubic-bezier(…) CSS, « x1, y1, x2, y2 », [x1, y1, x2, y2], JSON Sori, liste de presets,
     ou objet { name, bezier: […] } / { x1, y1, x2, y2 } (échange avec After Effects / Flow via cubic-bezier).
 
-APPARENCE PARTAGÉE (Cypher, Ongaku, Sori)
+APPARENCE PARTAGÉE (Mori, Ongaku, Sori)
   Thème, nom affiché, couleur du nom et presets de thème sont écrits dans
-    Windows : %APPDATA%\CypherSuite\appearance.json
-    macOS   : ~/Library/Application Support/CypherSuite/appearance.json
+    Windows : %APPDATA%\MoriSuite\appearance.json
+    macOS   : ~/Library/Application Support/MoriSuite/appearance.json
   (js/suite-theme.js, copié à l'identique dans Ongaku/js et com.cutflow.studio.panel/vendor).
   Un changement dans un panneau est repris en direct par les autres. Les onglets affichés restent propres à
-  chaque panneau. Premier lancement : le premier panneau mis à jour (Cypher ou Ongaku) crée le fichier avec
+  chaque panneau. Premier lancement : le premier panneau mis à jour (Mori ou Ongaku) crée le fichier avec
   ses réglages ; Sori ne le crée que si on modifie l'apparence depuis Sori.
 
 PAQUETS D'INSTALLATION (Windows / macOS)
@@ -72,7 +72,7 @@ FICHIERS
   index.html, css/        interface
   js/curve.js             modèle de courbe : Bézier multi-segments, De Casteljau, presets, import / export
   js/app.js               éditeur canvas, bibliothèque, calcul des clés, réglages
-  js/suite-theme.js       apparence partagée Cypher / Ongaku / Sori
+  js/suite-theme.js       apparence partagée Mori / Ongaku / Sori
   jsx/Sori_Premiere.jsx   lecture des clés, injection, effet Transformation (ExtendScript, 100 % ASCII)
 
 Débogage : http://localhost:8090 dans Chrome quand le panneau est ouvert.

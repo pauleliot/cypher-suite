@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ExtensionManifest Version="11.0" ExtensionBundleId="com.sori.panel" ExtensionBundleVersion="1.2.2" ExtensionBundleName="Sori" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<ExtensionManifest Version="11.0" ExtensionBundleId="com.sori.panel" ExtensionBundleVersion="1.3.0" ExtensionBundleName="Sori" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <ExtensionList>
-    <Extension Id="com.sori.panel" Version="1.2.2" />
+    <Extension Id="com.sori.panel" Version="1.3.0" />
   </ExtensionList>
   <ExecutionEnvironment>
     <HostList>
@@ -21,7 +21,7 @@
           <MainPath>./index.html</MainPath>
           <ScriptPath>./jsx/Sori_Premiere.jsx</ScriptPath>
           <CEFCommandLine>
-            <!-- Node.js (window.cep_node) : apparence partagée avec Cypher / Ongaku, export des presets -->
+            <!-- Node.js (window.cep_node) : apparence partagée avec Mori / Ongaku, export des presets -->
             <Parameter>--enable-nodejs</Parameter>
             <Parameter>--allow-file-access</Parameter>
             <Parameter>--allow-file-access-from-files</Parameter>

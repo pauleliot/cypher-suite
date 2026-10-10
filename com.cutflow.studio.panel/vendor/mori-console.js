@@ -1,11 +1,11 @@
 /**
- * Cypher Console : console d'effets façon FX Console (fenêtre flottante ouverte par Ctrl+Espace / ⌥Espace).
+ * Mori Console : console d'effets façon FX Console (fenêtre flottante ouverte par Ctrl+Espace / ⌥Espace).
  *
- * Écrite sans React ni l'application Cypher pour s'ouvrir le plus vite possible : la page ne charge que les styles
+ * Écrite sans React ni l'application Mori pour s'ouvrir le plus vite possible : la page ne charge que les styles
  * précompilés, le thème partagé (suite-theme.js) et ce script. On tape le nom d'un effet, Entrée l'applique aux
  * clips sélectionnés de la timeline (effet vidéo -> clips vidéo, effet audio -> clips audio). Les presets de
- * l'utilisateur (panneau Effets > Préconfigurations) sont proposés aussi : la fenêtre cachée de Cypher les lit dans
- * le fichier de presets de Premiere et les applique (voir cypher-hotkey.js).
+ * l'utilisateur (panneau Effets > Préconfigurations) sont proposés aussi : la fenêtre cachée de Mori les lit dans
+ * le fichier de presets de Premiere et les applique (voir mori-hotkey.js).
  *
  * Clavier : ↑ ↓ choisir · Entrée appliquer et fermer · Maj+Entrée appliquer sans fermer · Tab Tout/Vidéo/Audio/Presets ·
  * Ctrl+D (⌘D) favori · Échap fermer. Champ vide : favoris puis derniers effets utilisés.
@@ -13,12 +13,24 @@
 (function () {
   'use strict';
 
-  var KEYS = { presets: 'cypher.console.presets', effects: 'cypher.console.effects', favorites: 'cypher.console.favorites', recents: 'cypher.console.recents', listedAt: 'cypher.console.listedAt' };
+  var KEYS = { presets: 'mori.console.presets', effects: 'mori.console.effects', favorites: 'mori.console.favorites', recents: 'mori.console.recents', listedAt: 'mori.console.listedAt' };
   // la liste des effets n'est redemandée à Premiere qu'après ce délai (elle ne change qu'en installant un plugin)
   var LIST_MAX_AGE_MS = 5 * 60 * 1000;
   var cep = window.__adobe_cep__ || null;
 
   // ---------- stockage ----------
+  // clés d'avant le renommage du panneau : reprises une fois (favoris, récents, listes, thème)
+  try {
+    var legacy = 'cypher.console.';
+    for (var li = localStorage.length - 1; li >= 0; li--) {
+      var lk = localStorage.key(li);
+      if (lk && lk.indexOf(legacy) === 0) {
+        var nk = 'mori.console.' + lk.slice(legacy.length);
+        if (localStorage.getItem(nk) === null) localStorage.setItem(nk, localStorage.getItem(lk));
+        localStorage.removeItem(lk);
+      }
+    }
+  } catch (e) {}
   function read(key, fallback) {
     try {
       var raw = localStorage.getItem(key);
@@ -33,7 +45,7 @@
     } catch (e) {}
   }
 
-  // ---------- thème partagé (mêmes calculs que applyTheme du panneau Cypher) ----------
+  // ---------- thème partagé (mêmes calculs que applyTheme du panneau Mori) ----------
   function hexToRgb(hex) {
     var v = String(hex || '').replace(/^#/, '');
     if (/^[0-9a-f]{3}$/i.test(v)) v = v.replace(/(.)/g, '$1$1');
@@ -104,27 +116,27 @@
       return null;
     }
   }
-  var presets = read('cypher.console.presets', []);
+  var presets = read('mori.console.presets', []);
   var presetSource = '', pendingPreset = null, started = false;
-  // la console n'a pas Node : le thème vient de la fenêtre cachée de Cypher (événement CEP), et le dernier reçu est
+  // la console n'a pas Node : le thème vient de la fenêtre cachée de Mori (événement CEP), et le dernier reçu est
   // gardé pour s'afficher tout de suite aux couleurs du thème à l'ouverture suivante
-  applyTheme(read('cypher.console.theme', null));
+  applyTheme(read('mori.console.theme', null));
   if (cep && cep.addEventListener) {
     try {
-      cep.addEventListener('com.cypher.console.theme', function (ev) {
+      cep.addEventListener('com.mori.console.theme', function (ev) {
         try {
           var data = typeof ev === 'string' ? JSON.parse(ev) : ev;
           if (data && data.data !== undefined) data = data.data;
           var theme = typeof data === 'string' ? JSON.parse(data) : data;
           if (theme && theme.background) {
             applyTheme(theme);
-            write('cypher.console.theme', theme);
+            write('mori.console.theme', theme);
           }
         } catch (e) {}
       });
-      cep.addEventListener('com.cypher.console.presets', function (ev) {
+      cep.addEventListener('com.mori.console.presets', function (ev) {
         var data = eventData(ev);
-        // la fenêtre cachée et le panneau Cypher répondent tous les deux : la première réponse sert
+        // la fenêtre cachée et le panneau Mori répondent tous les deux : la première réponse sert
         if (!data || !Array.isArray(data.list) || (presetSource && presetSource !== data.from)) return;
         presetSource = data.from;
         var fresh = data.list.map(function (p) {
@@ -135,11 +147,11 @@
         write(KEYS.presets, presets);
         if (typeof render === 'function' && started) render();
       });
-      cep.addEventListener('com.cypher.console.presetResult', function (ev) {
+      cep.addEventListener('com.mori.console.presetResult', function (ev) {
         var data = eventData(ev);
         if (data && pendingPreset && data.id === pendingPreset.id) pendingPreset.done(String(data.result || ''));
       });
-      sendCepEvent('com.cypher.console.ready', '');
+      sendCepEvent('com.mori.console.ready', '');
     } catch (e) {}
   }
 
@@ -375,7 +387,7 @@
     });
   }
 
-  /** Demande à la fenêtre cachée de Cypher (qui a lu le fichier de presets) d'appliquer un preset */
+  /** Demande à la fenêtre cachée de Mori (qui a lu le fichier de presets) d'appliquer un preset */
   function requestPreset(e) {
     return new Promise(function (resolve) {
       if (!presetSource) return resolve('ERR|Presets indisponibles : rouvrez la console dans un instant');
@@ -392,7 +404,7 @@
           resolve(r);
         }
       };
-      sendCepEvent('com.cypher.console.applyPreset', JSON.stringify({ to: presetSource, id: id, key: e.key }));
+      sendCepEvent('com.mori.console.applyPreset', JSON.stringify({ to: presetSource, id: id, key: e.key }));
     });
   }
 

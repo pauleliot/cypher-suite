@@ -1,5 +1,5 @@
 #!/bin/bash
-# Cypher — Studio : installeur macOS. Double-cliquez sur ce fichier dans le Finder
+# Mori — Studio : installeur macOS. Double-cliquez sur ce fichier dans le Finder
 # (la première fois : clic droit > Ouvrir, car le script n'est pas signé par Apple).
 # Installe le panneau et tout ce qu'il utilise, sans Homebrew ni mot de passe administrateur :
 #   - autorisation des extensions non signées dans Premiere Pro (CEP 9 à 14)
@@ -8,7 +8,7 @@
 
 cd "$(dirname "$0")" || exit 1
 SOURCE="$(pwd -P)"
-TARGET="$HOME/Library/Application Support/Adobe/CEP/extensions/com.cypher.studio.panel"
+TARGET="$HOME/Library/Application Support/Adobe/CEP/extensions/com.mori.studio.panel"
 BIN="$TARGET/bin/mac"
 TMP="$(mktemp -d)"
 ERRORS=0
@@ -38,7 +38,7 @@ check() { # libellé chemin arguments…
 }
 
 [ -n "$SUITE_AUTO" ] || clear
-printf '\n  Cypher — Studio : installation du panneau Premiere Pro\n'
+printf '\n  Mori — Studio : installation du panneau Premiere Pro\n'
 printf '  ======================================================\n'
 
 # 0. Premiere Pro doit être fermé : il verrouille les fichiers du panneau
@@ -58,34 +58,37 @@ if [ -d "$TARGET" ] && [ "$SOURCE" = "$(cd "$TARGET" && pwd -P)" ]; then
   ok 'panneau déjà en place'
 else
   mkdir -p "$TARGET"
-  rsync -a --exclude 'installer' --exclude 'Installer Cypher.bat' --exclude 'Installer Cypher.command' \
+  rsync -a --exclude 'installer' --exclude 'Installer Mori.bat' --exclude 'Installer Mori.command' \
     --exclude 'README.txt' --exclude '.debug' ./ "$TARGET/" || { fail "copie impossible vers $TARGET"; finish 1; }
   ok "copié dans $TARGET"
 fi
 
-# Ancien identifiant du panneau (com.cutflow.studio.panel, jusqu'à la v2.6.0) :
-# réglages (chutiers, presets, thème…) et outils déjà téléchargés repris, ancien panneau retiré
-OLD_TARGET="$HOME/Library/Application Support/Adobe/CEP/extensions/com.cutflow.studio.panel"
+# Anciens identifiants du panneau (le plus récent d'abord : com.cypher.studio.* jusqu'à la v2.11, com.cutflow.studio.panel
+# jusqu'à la v2.6.0) : réglages (chutiers, presets, thème, favoris de la console…) et outils déjà téléchargés
+# repris, ancien panneau retiré
 CEP_CACHE="$HOME/Library/Caches/CSXS/cep_cache"
-for old_cache in "$CEP_CACHE"/*_com.cutflow.studio.panel; do
-  [ -d "$old_cache/Local Storage" ] || continue
-  new_cache="${old_cache%com.cutflow.studio.panel}com.cypher.studio.panel"
-  if [ ! -d "$new_cache/Local Storage" ]; then
-    mkdir -p "$new_cache" && cp -R "$old_cache/Local Storage" "$new_cache/" && ok "réglages de l'ancienne version repris"
+for old_id in com.cypher.studio com.cutflow.studio; do
+  for old_cache in "$CEP_CACHE"/*_"$old_id".*; do
+    [ -d "$old_cache/Local Storage" ] || continue
+    new_cache="${old_cache/$old_id/com.mori.studio}"
+    if [ ! -d "$new_cache/Local Storage" ]; then
+      mkdir -p "$new_cache" && cp -R "$old_cache/Local Storage" "$new_cache/" && ok "réglages de l'ancienne version repris"
+    fi
+  done
+  OLD_TARGET="$HOME/Library/Application Support/Adobe/CEP/extensions/$old_id.panel"
+  if [ -d "$OLD_TARGET" ] && [ "${SOURCE#"$(cd "$OLD_TARGET" && pwd -P)"}" = "$SOURCE" ]; then
+    if [ -f "$OLD_TARGET/app.source.tsx" ]; then
+      info "ancien dossier de développement conservé ($old_id.panel) : supprimez-le pour éviter un doublon"
+    else
+      mkdir -p "$BIN"
+      for f in "$OLD_TARGET/bin/mac"/*; do
+        [ -f "$f" ] && [ ! -e "$BIN/$(basename "$f")" ] && mv "$f" "$BIN/"
+      done
+      rm -rf "$OLD_TARGET"
+      ok 'ancienne version du panneau retirée (outils conservés)'
+    fi
   fi
 done
-if [ -d "$OLD_TARGET" ] && [ "${SOURCE#"$(cd "$OLD_TARGET" && pwd -P)"}" = "$SOURCE" ]; then
-  if [ -f "$OLD_TARGET/app.source.tsx" ]; then
-    info 'ancien dossier de développement conservé (com.cutflow.studio.panel) : supprimez-le pour éviter un doublon'
-  else
-    mkdir -p "$BIN"
-    for f in "$OLD_TARGET/bin/mac"/*; do
-      [ -f "$f" ] && [ ! -e "$BIN/$(basename "$f")" ] && mv "$f" "$BIN/"
-    done
-    rm -rf "$OLD_TARGET"
-    ok 'ancienne version du panneau retirée (outils conservés)'
-  fi
-fi
 mkdir -p "$BIN"
 
 ARCH="$(uname -m)" # arm64 (Apple Silicon) ou x86_64 (Intel)
@@ -148,5 +151,5 @@ if [ "$ERRORS" -gt 0 ]; then
 else
   printf '\033[32m  Installation terminée : tout est prêt.\033[0m\n'
 fi
-printf '  Ouvrez Premiere Pro puis : Fenêtre > Extensions > Cypher — Studio\n'
+printf '  Ouvrez Premiere Pro puis : Fenêtre > Extensions > Mori — Studio\n'
 finish 0

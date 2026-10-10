@@ -1,0 +1,4 @@
+1.3.0
+- Apparence : police de l'interface au choix (Urbanist, Space Grotesk, Inter) ou police importée, commune à Mori, Ongaku, Sori et Kiru.
+- Mises à jour : le panneau propose lui-même les nouvelles versions.
+- Le panneau Cypher de la suite s'appelle maintenant Mori : thème, police et nom affiché restent partagés entre les quatre panneaux.

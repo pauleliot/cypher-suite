@@ -1,8 +1,8 @@
-﻿# Cypher Console : raccourci Ctrl+Espace dans Premiere Pro (Windows)
+﻿# Mori Console : raccourci Ctrl+Espace dans Premiere Pro (Windows)
 #
-# Lancé (caché) par Cypher. Le raccourci n'est réservé que lorsque la fenêtre au premier plan est Premiere Pro :
-# ailleurs, Ctrl+Espace garde son rôle habituel. À chaque appui, écrit « HOTKEY » sur la sortie standard ; Cypher
-# ouvre alors la console. S'arrête quand la fenêtre Cypher qui l'a lancé se ferme (ou Premiere). Une seule
+# Lancé (caché) par Mori. Le raccourci n'est réservé que lorsque la fenêtre au premier plan est Premiere Pro :
+# ailleurs, Ctrl+Espace garde son rôle habituel. À chaque appui, écrit « HOTKEY » sur la sortie standard ; Mori
+# ouvre alors la console. S'arrête quand la fenêtre Mori qui l'a lancé se ferme (ou Premiere). Une seule
 # instance tient le raccourci (mutex) : une autre attend sans rien consommer et prend le relais si la première s'arrête.
 param([int]$PremierePid = 0)
 
@@ -13,7 +13,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
 
-public static class CypherHotkey {
+public static class MoriHotkey {
   [DllImport("user32.dll")] static extern bool RegisterHotKey(IntPtr hWnd, int id, uint mods, uint vk);
   [DllImport("user32.dll")] static extern bool UnregisterHotKey(IntPtr hWnd, int id);
   [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
@@ -39,11 +39,11 @@ public static class CypherHotkey {
   }
 
   public static void Run(int premierePid) {
-    // la fenêtre Cypher qui nous a lancés se ferme : son tube se ferme, on s'arrête
+    // la fenêtre Mori qui nous a lancés se ferme : son tube se ferme, on s'arrête
     var watcher = new Thread(() => { try { while (Console.In.Read() != -1) { } } catch { } Environment.Exit(0); });
     watcher.IsBackground = true;
     watcher.Start();
-    var mutex = new Mutex(false, @"Local\CypherConsoleHotkey");
+    var mutex = new Mutex(false, @"Local\MoriConsoleHotkey");
     try { mutex.WaitOne(); } catch (AbandonedMutexException) { }
     bool registered = false;
     int tick = 0;
@@ -70,4 +70,4 @@ public static class CypherHotkey {
 }
 "@
 
-[CypherHotkey]::Run($PremierePid)
+[MoriHotkey]::Run($PremierePid)

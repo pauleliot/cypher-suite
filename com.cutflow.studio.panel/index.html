@@ -3,13 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Cypher — Studio</title>
+    <title>Mori — Studio</title>
 
     <script>
       // Node.js (manifest --enable-nodejs) : on range require/process/Buffer dans window.cep_node
       // pour l'outil vidéo, puis on masque require/module/exports afin que Tailwind et les autres
       // scripts ne se prennent pas pour des modules CommonJS.
-      if (typeof require === 'function') window.__cypherRequire = require;
+      if (typeof require === 'function') window.__moriRequire = require;
       if (typeof require === 'function' && !window.cep_node) {
         window.cep_node = {
           require: require,
@@ -43,7 +43,7 @@
 
     <!-- Apparence partagée avec Ongaku et Sori (thème, nom affiché, presets) -->
     <script src="./vendor/suite-theme.js"></script>
-    <script src="./vendor/suite-update.js" data-app="cypher" data-name="Cypher"></script>
+    <script src="./vendor/suite-update.js" data-app="mori" data-name="Mori"></script>
 
     <!-- Tout est embarqué dans vendor/ : le panneau fonctionne sans connexion internet -->
 
@@ -53,7 +53,7 @@
     <!-- Styles Tailwind 3.4.17 précompilés (plus de moteur dans le navigateur : chargement sans flash
          et interface plus fluide). Palette pilotée par les variables CSS ci-dessous, recalculées par
          l'app depuis les réglages Apparence. Régénérer après tout ajout de classe dans app.source.tsx. -->
-    <link href="./vendor/cypher.css" rel="stylesheet" />
+    <link href="./vendor/mori.css" rel="stylesheet" />
 
     <!-- Polyfill des import maps : le Chromium de CEP 11 (Premiere 2024) ne les supporte pas nativement -->
     <script async src="./vendor/es-module-shims.js"></script>
@@ -162,10 +162,10 @@
   <body>
     <div id="root">
       <div id="cf-offline-fallback">
-        <strong>⚠️ Cypher n'a pas pu démarrer.</strong><br /><br />
+        <strong>⚠️ Mori n'a pas pu démarrer.</strong><br /><br />
         Des fichiers du panneau semblent manquer (dossier vendor/ ou app.js).
-        Relancez l'installeur de Cypher, puis rouvrez le panneau via
-        <code>Fenêtre &gt; Extensions &gt; Cypher — Studio</code>.
+        Relancez l'installeur de Mori, puis rouvrez le panneau via
+        <code>Fenêtre &gt; Extensions &gt; Mori — Studio</code>.
       </div>
     </div>
 

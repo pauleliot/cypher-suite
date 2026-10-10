@@ -5,7 +5,7 @@
 (function () {
   'use strict';
 
-  var APP_VERSION = '1.7.1'; // à garder identique à CSXS/manifest.xml
+  var APP_VERSION = '1.8.0'; // à garder identique à CSXS/manifest.xml
   var Lib = window.OngakuLib, An = window.OngakuAnalysis, Fx = window.OngakuEffects;
   var cs = new CSInterface();
   var inCEP = !!window.__adobe_cep__;
@@ -75,7 +75,7 @@
   };
   function folders(cat) { return prefs.libs[cat || prefs.category] || []; }
   function savePrefs() { try { localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)); } catch (e) {} }
-  /** Apparence modifiée dans Ongaku : écrite aussi dans le fichier partagé avec Cypher et Sori */
+  /** Apparence modifiée dans Ongaku : écrite aussi dans le fichier partagé avec Mori et Sori */
   function saveAppearance() {
     savePrefs();
     if (window.SuiteTheme && prefs.appearance) window.SuiteTheme.write(prefs.appearance, 'Ongaku');
@@ -1539,7 +1539,7 @@
     rescan().then(renderView);
   }
 
-  // ==================== Apparence (partagée avec Cypher et Sori, presets compatibles) ====================
+  // ==================== Apparence (partagée avec Mori et Sori, presets compatibles) ====================
   var BUILTIN_PRESETS = [
     { id: 'defaut', name: 'Défaut', background: '#0c1322', accent: '#8ea8f7', primary: '#fbe6a6', brandColor: '#a9bfff', builtIn: true }
   ];
@@ -1560,7 +1560,7 @@
   }
 
   /**
-   * Démarrage : thème, nom affiché et presets viennent du fichier partagé (Cypher, Ongaku, Sori).
+   * Démarrage : thème, nom affiché et presets viennent du fichier partagé (Mori, Ongaku, Sori).
    * S'il n'existe pas encore, Ongaku le crée avec ses propres réglages. Les onglets restent propres à Ongaku.
    */
   function syncSharedAppearance() {
@@ -1590,7 +1590,7 @@
   function mixRgb(a, b, t) { return [0, 1, 2].map(function (i) { return Math.round(a[i] + (b[i] - a[i]) * t); }); }
   function luminance(c) { return (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255; }
 
-  /** Même calcul que Cypher : nuances zinc / accent / cream / ink posées en variables CSS */
+  /** Même calcul que Mori : nuances zinc / accent / cream / ink posées en variables CSS */
   function applyTheme(theme) {
     var root = document.documentElement.style;
     var set = function (name, rgb) { root.setProperty('--' + name, rgb.join(' ')); };
@@ -1671,7 +1671,7 @@
   }
 
   function exportPresetCode(p) {
-    return JSON.stringify({ cypherTheme: 1, name: p.name, background: p.background, accent: p.accent, primary: p.primary, brandColor: p.brandColor });
+    return JSON.stringify({ moriTheme: 1, name: p.name, background: p.background, accent: p.accent, primary: p.primary, brandColor: p.brandColor });
   }
   function parsePresetCode(code) {
     var data;
@@ -1682,7 +1682,7 @@
     return { id: 'preset-' + Date.now(), name: String(data.name || 'Preset importé').slice(0, 40), background: background, accent: accent, primary: primary, brandColor: brandColor };
   }
 
-  // ==================== Réglages (fenêtre centrée, onglets comme Cypher) ====================
+  // ==================== Réglages (fenêtre centrée, onglets comme Mori) ====================
   var setTab = 'library', setUi = { exportCode: '', showImport: false, importError: '', presetName: '' };
   function openSettings() { renderSettings(); $('#settings').classList.add('open'); }
   function closeSettings() { $('#settings').classList.remove('open'); setUi.exportCode = ''; setUi.showImport = false; setUi.importError = ''; }
@@ -1733,7 +1733,7 @@
     } else {
       var isCur = function (p) { return p.background === a.theme.background && p.accent === a.theme.accent && p.primary === a.theme.primary; };
       body =
-        '<div class="hint">Apparence <b>partagée avec Cypher et Sori</b> : thème, nom affiché et presets se mettent à jour dans les trois panneaux (les onglets affichés restent propres à Ongaku).</div>' +
+        '<div class="hint">Apparence <b>partagée avec Mori et Sori</b> : thème, nom affiché et presets se mettent à jour dans les trois panneaux (les onglets affichés restent propres à Ongaku).</div>' +
         '<div class="sgroup"><h3>Thème de couleurs</h3>' +
         '<div class="presets">' + BUILTIN_PRESETS.concat(a.userPresets).map(function (p) {
           return '<span class="preset-wrap"><button class="preset ' + (isCur(p) ? 'on' : '') + '" data-preset="' + esc(p.id) + '"><span class="dots">' +
@@ -1745,8 +1745,8 @@
         '<button class="sbtn sm" id="savePreset"' + (setUi.presetName.trim() ? '' : ' disabled') + '>' + icon('plus') + 'Enregistrer</button>' +
         '<button class="sbtn sm" id="exportPreset">' + icon('copy') + 'Exporter</button>' +
         '<button class="sbtn sm" id="toggleImport">' + icon('download') + 'Importer</button></div>' +
-        (setUi.exportCode ? '<div class="hint">Code copié dans le presse-papiers, à partager tel quel (compatible Cypher et Sori) :</div><textarea class="code" readonly rows="2" id="exportCode">' + esc(setUi.exportCode) + '</textarea>' : '') +
-        (setUi.showImport ? '<textarea class="code" rows="2" id="importCode" placeholder=\'Collez un code de preset : {"cypherTheme":1,"name":…}\'></textarea>' +
+        (setUi.exportCode ? '<div class="hint">Code copié dans le presse-papiers, à partager tel quel (compatible Mori et Sori) :</div><textarea class="code" readonly rows="2" id="exportCode">' + esc(setUi.exportCode) + '</textarea>' : '') +
+        (setUi.showImport ? '<textarea class="code" rows="2" id="importCode" placeholder=\'Collez un code de preset : {"moriTheme":1,"name":…}\'></textarea>' +
           (setUi.importError ? '<div class="err">' + esc(setUi.importError) + '</div>' : '') +
           '<div class="srow end"><button class="sbtn sm" id="applyImport">' + icon('check') + 'Appliquer</button></div>' : '') +
         '</div>' +

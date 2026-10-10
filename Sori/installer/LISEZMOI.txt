@@ -27,4 +27,4 @@ DÉSINSTALLATION
 PREMIERS PAS
   - Dans la timeline, posez 2 images clés (départ, arrivée) sur Position, Échelle, Rotation ou Opacité.
   - Sélectionnez le ou les clips, choisissez une courbe dans Sori, puis « Appliquer » (Ctrl+Entrée).
-  - Apparence partagée avec Cypher et Ongaku : un thème réglé dans l'un s'applique aux trois.
+  - Apparence partagée avec Mori et Ongaku : un thème réglé dans l'un s'applique aux trois.

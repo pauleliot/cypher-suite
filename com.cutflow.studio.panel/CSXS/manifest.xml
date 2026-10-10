@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ExtensionManifest Version="10.0" ExtensionBundleId="com.cypher.studio.panel" ExtensionBundleVersion="2.11.1" ExtensionBundleName="Cypher" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<ExtensionManifest Version="10.0" ExtensionBundleId="com.mori.studio.panel" ExtensionBundleVersion="2.12.0" ExtensionBundleName="Mori" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <ExtensionList>
-    <Extension Id="com.cypher.studio.panel" Version="2.11.1" />
-    <Extension Id="com.cypher.studio.console" Version="2.11.1" />
-    <Extension Id="com.cypher.studio.hotkey" Version="2.11.1" />
+    <Extension Id="com.mori.studio.panel" Version="2.12.0" />
+    <Extension Id="com.mori.studio.console" Version="2.12.0" />
+    <Extension Id="com.mori.studio.hotkey" Version="2.12.0" />
   </ExtensionList>
   <ExecutionEnvironment>
     <HostList>
@@ -17,7 +17,7 @@
     </RequiredRuntimeList>
   </ExecutionEnvironment>
   <DispatchInfoList>
-    <Extension Id="com.cypher.studio.panel">
+    <Extension Id="com.mori.studio.panel">
       <DispatchInfo>
         <Resources>
           <MainPath>./index.html</MainPath>
@@ -34,7 +34,7 @@
         </Lifecycle>
         <UI>
           <Type>Panel</Type>
-          <Menu>Cypher — Avril Films</Menu>
+          <Menu>Mori — Avril Films</Menu>
           <Geometry>
             <Size>
               <Height>750</Height>
@@ -52,8 +52,8 @@
         </UI>
       </DispatchInfo>
     </Extension>
-    <!-- Cypher Console : console d'effets façon FX Console, fenêtre flottante ouverte par Ctrl+Espace -->
-    <Extension Id="com.cypher.studio.console">
+    <!-- Mori Console : console d'effets façon FX Console, fenêtre flottante ouverte par Ctrl+Espace -->
+    <Extension Id="com.mori.studio.console">
       <DispatchInfo>
         <Resources>
           <MainPath>./console.html</MainPath>
@@ -64,7 +64,7 @@
         </Lifecycle>
         <UI>
           <Type>Modeless</Type>
-          <Menu>Cypher Console</Menu>
+          <Menu>Mori Console</Menu>
           <Geometry>
             <Size>
               <Height>300</Height>
@@ -79,7 +79,7 @@
       </DispatchInfo>
     </Extension>
     <!-- Fenêtre invisible démarrée avec Premiere : tient le raccourci Ctrl+Espace (Windows) -->
-    <Extension Id="com.cypher.studio.hotkey">
+    <Extension Id="com.mori.studio.hotkey">
       <DispatchInfo>
         <Resources>
           <MainPath>./hotkey.html</MainPath>

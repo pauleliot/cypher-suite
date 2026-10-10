@@ -1,5 +1,5 @@
 """
-Suite Cypher : fabrique les installeurs des 4 panneaux et les publie en Releases GitHub.
+Suite Mori : fabrique les installeurs des 4 panneaux et les publie en Releases GitHub.
 
     python release.py             fabrique les installeurs (dossier .release/)
     python release.py --publish   + crée sur GitHub les Releases qui n'existent pas encore (une par panneau et par version)
@@ -10,7 +10,7 @@ Pour chaque panneau :
   - macOS : « Installer-<Nom>-<version>-macOS.zip » contenant « Installer <Nom>.app » : double-clic, fenêtres macOS,
     sans Terminal ni chmod.
 Les deux copient le panneau puis lancent son script d'installation habituel (installer/install.ps1, « Installer
-<Nom>.command ») en mode automatique (SUITE_AUTO=1) : autorisation des extensions, outils (FFmpeg… pour Cypher),
+<Nom>.command ») en mode automatique (SUITE_AUTO=1) : autorisation des extensions, outils (FFmpeg… pour Mori),
 police (Kiru). Sans signature payante, Windows et macOS affichent un avertissement à la première ouverture.
 
 Les versions sont lues dans le CSXS/manifest.xml de chaque panneau. Une Release s'appelle « <panneau>-v<version> »
@@ -30,15 +30,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 OUT = ROOT / ".release"  # hors du dépôt (.gitignore)
 APPS = [
-    {"id": "cypher", "name": "Cypher", "dir": "com.cutflow.studio.panel", "tagline": "Le couteau suisse du monteur"},
+    {"id": "mori", "name": "Mori", "dir": "com.cutflow.studio.panel", "tagline": "Le couteau suisse du monteur"},
     {"id": "ongaku", "name": "Ongaku", "dir": "Ongaku", "tagline": "Bibliothèque musicale et beats"},
     {"id": "sori", "name": "Sori", "dir": "Sori", "tagline": "Courbes d'animation"},
     {"id": "kiru", "name": "Kiru", "dir": "Kiru", "tagline": "Autocut et sous-titres"},
 ]
 PUBLISHER = "Paul-Eliot Kostre"
 SITE = "https://pauleliot.github.io/plugins.html"
-# Cypher n'a pas de build.py : son paquet est le dossier lui-même, sans ces fichiers
-CYPHER_SKIP = {".debug", "dist", "app.source.tsx", ".claude"}
+# Mori n'a pas de build.py : son paquet est le dossier lui-même, sans ces fichiers
+MORI_SKIP = {".debug", "dist", "app.source.tsx", ".claude"}
 
 
 def manifest(app, attr):
@@ -68,7 +68,7 @@ def iscc():
 
 # ==================== Paquets de chaque panneau ====================
 def package(app):
-    """Paquets d'un panneau (.zip) → { 'windows': chemin, 'macos': chemin } (Cypher : le même pour les deux)"""
+    """Paquets d'un panneau (.zip) → { 'windows': chemin, 'macos': chemin } (Mori : le même pour les deux)"""
     d, v = ROOT / app["dir"], version(app)
     if (d / "build.py").exists():
         subprocess.run([sys.executable, "build.py"], cwd=d, check=True)
@@ -78,7 +78,7 @@ def package(app):
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         for f in sorted(d.rglob("*")):
             rel = f.relative_to(d)
-            if f.is_file() and not (set(rel.parts) & CYPHER_SKIP):
+            if f.is_file() and not (set(rel.parts) & MORI_SKIP):
                 z.write(f, f"{app['name']}-{v}/{rel.as_posix()}")
     return {"windows": out, "macos": out}
 
@@ -121,6 +121,7 @@ AppVerName={name} {version}
 AppPublisher={publisher}
 AppPublisherURL={site}
 DefaultDirName={{userappdata}}\Adobe\CEP\extensions\{bundle}
+UsePreviousAppDir=no
 DisableDirPage=yes
 DisableProgramGroupPage=yes
 DisableReadyPage=yes
@@ -194,9 +195,13 @@ def windows_installer(app, pkg):
     icon(app, 256).save(ico, sizes=[(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
     bundle = re.search(r"\$Target = Join-Path .*?'(?:Adobe\\CEP\\extensions\\)?(com\.[\w.]+)'",
                        (stage / "installer/install.ps1").read_text(encoding="utf-8-sig")).group(1)
-    status = "Téléchargement des outils (FFmpeg, yt-dlp)… quelques minutes" if app["id"] == "cypher" else "Finalisation de l'installation…"
+    status = "Téléchargement des outils (FFmpeg, yt-dlp)… quelques minutes" if app["id"] == "mori" else "Finalisation de l'installation…"
     status = status.replace("'", "''")  # chaîne Pascal (Inno Setup)
-    iss = ISS.format(name=name, version=v, guid=str(uuid.uuid5(uuid.NAMESPACE_URL, f"cypher-suite/{app['id']}")).upper(),
+    # Identifiant Windows de l'installeur : calculé sur les noms d'origine (suite et panneau) pour rester le même
+    # d'une version à l'autre — Mori remplace ainsi l'entrée de son ancien nom dans « Applications installées »
+    # au lieu d'en ajouter une seconde (UsePreviousAppDir=no : il s'installe bien dans son nouveau dossier)
+    seed = {"mori": "cypher"}.get(app["id"], app["id"])
+    iss = ISS.format(name=name, version=v, guid=str(uuid.uuid5(uuid.NAMESPACE_URL, f"cypher-suite/{seed}")).upper(),
                      publisher=PUBLISHER, site=SITE, bundle=bundle, outdir=OUT, ico=ico, stage=stage, menu=menu(app), status=status)
     iss_path = OUT / "stage" / f"{app['id']}.iss"
     iss_path.write_text(iss, encoding="utf-8-sig")
@@ -451,7 +456,7 @@ def mac_installer(app, pkg):
 
     with zipfile.ZipFile(out, "w") as z:
         add(z, f"{top}/Info.plist", PLIST.format(id=app["id"], name=name, version=v).encode("utf-8"), 0o644)
-        busy = "Installation en cours (téléchargement des outils : quelques minutes)…" if app["id"] == "cypher" else "Installation en cours…"
+        busy = "Installation en cours (téléchargement des outils : quelques minutes)…" if app["id"] == "mori" else "Installation en cours…"
         add(z, f"{top}/MacOS/installer", LAUNCHER.format(name=name, version=v, menu=menu(app), busy=busy).replace("\r\n", "\n").encode("utf-8"), 0o755)
         add(z, f"{top}/Resources/AppIcon.icns", icns.read_bytes(), 0o644)
         add(z, f"{top}/Resources/installer-ui.js", INSTALLER_UI.encode("utf-8"), 0o644)
