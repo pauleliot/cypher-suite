@@ -40,7 +40,11 @@ Outils inclus :
 Cypher Console (façon FX Console) : Ctrl+Espace (Windows) ou ⌥Espace (Mac) quand
 Premiere est au premier plan ouvre une petite fenêtre : tapez le nom d'un effet
 (vidéo ou audio, plugins compris), Entrée l'applique aux clips sélectionnés.
-Maj+Entrée : sans fermer · Tab : vidéo/audio · Ctrl+D : favori · Échap : fermer.
+Maj+Entrée : sans fermer · Tab : vidéo/audio/presets · Ctrl+D : favori · Échap : fermer.
+Vos presets d'effets (panneau Effets > Préconfigurations) y sont aussi : réglages et
+images clés repris ; les poignées exactes des courbes et les données internes d'un
+effet (LUT, masque, texte) ne peuvent pas l'être. Un preset créé pendant la session
+apparaît après le redémarrage de Premiere (il n'enregistre ses presets qu'en quittant).
 Mac : autorisez Premiere (ou osascript) dans Réglages Système > Confidentialité et
 sécurité > Accessibilité (Cypher l'explique et ouvre les réglages si besoin ; le
 raccourci marche dès la case cochée). Journal : ~/Library/Logs/Cypher-raccourci.log.
@@ -52,8 +56,9 @@ Réglages > Configuration : les profils regroupent tous les réglages
 pour configurer un poste de l'équipe.
 Réglages > Apparence : le nom affiché à côté de « Cypher » renomme aussi la
 fenêtre du panneau dans Premiere (au prochain démarrage de Premiere).
-Le thème, le nom affiché et les presets de thème sont partagés avec Ongaku
-et Sori (%APPDATA%\CypherSuite\appearance.json) : un changement dans l'un
+Police de l'interface au choix (Urbanist, Space Grotesk, Inter, ou une police
+importée .ttf / .otf / .woff / .woff2). Le thème, la police, le nom affiché et
+les presets de thème sont partagés avec Ongaku, Sori et Kiru (%APPDATA%\CypherSuite\appearance.json) : un changement dans l'un
 des panneaux s'applique aux autres.
 
 ------------------------------------------------------------------------

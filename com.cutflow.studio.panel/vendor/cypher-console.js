@@ -3,15 +3,19 @@
  *
  * Écrite sans React ni l'application Cypher pour s'ouvrir le plus vite possible : la page ne charge que les styles
  * précompilés, le thème partagé (suite-theme.js) et ce script. On tape le nom d'un effet, Entrée l'applique aux
- * clips sélectionnés de la timeline (effet vidéo -> clips vidéo, effet audio -> clips audio).
+ * clips sélectionnés de la timeline (effet vidéo -> clips vidéo, effet audio -> clips audio). Les presets de
+ * l'utilisateur (panneau Effets > Préconfigurations) sont proposés aussi : la fenêtre cachée de Cypher les lit dans
+ * le fichier de presets de Premiere et les applique (voir cypher-hotkey.js).
  *
- * Clavier : ↑ ↓ choisir · Entrée appliquer et fermer · Maj+Entrée appliquer sans fermer · Tab Tout/Vidéo/Audio ·
+ * Clavier : ↑ ↓ choisir · Entrée appliquer et fermer · Maj+Entrée appliquer sans fermer · Tab Tout/Vidéo/Audio/Presets ·
  * Ctrl+D (⌘D) favori · Échap fermer. Champ vide : favoris puis derniers effets utilisés.
  */
 (function () {
   'use strict';
 
-  var KEYS = { effects: 'cypher.console.effects', favorites: 'cypher.console.favorites', recents: 'cypher.console.recents' };
+  var KEYS = { presets: 'cypher.console.presets', effects: 'cypher.console.effects', favorites: 'cypher.console.favorites', recents: 'cypher.console.recents', listedAt: 'cypher.console.listedAt' };
+  // la liste des effets n'est redemandée à Premiere qu'après ce délai (elle ne change qu'en installant un plugin)
+  var LIST_MAX_AGE_MS = 5 * 60 * 1000;
   var cep = window.__adobe_cep__ || null;
 
   // ---------- stockage ----------
@@ -65,6 +69,20 @@
     Object.keys(p).forEach(function (k) {
       set('cream-' + k, mix(pr, p[k][0], p[k][1]));
     });
+    applyFont(theme.font);
+  }
+  // police choisie dans les réglages (polices livrées seulement : la console n'a pas Node pour lire une police importée)
+  var FONT_NAMES = { 'space-grotesk': 'Space Grotesk', inter: 'Inter' };
+  function applyFont(id) {
+    var name = FONT_NAMES[id];
+    if (name && !document.getElementById('suite-fonts')) {
+      var link = document.createElement('link');
+      link.id = 'suite-fonts';
+      link.rel = 'stylesheet';
+      link.href = './vendor/fonts/suite-fonts.css';
+      document.head.appendChild(link);
+    }
+    document.body.style.fontFamily = name ? "'" + name + "', Urbanist, sans-serif" : '';
   }
   // événement CEP vers les autres fenêtres de Premiere : sans l'identifiant de l'application (« PPRO ») et celui de
   // la fenêtre, Premiere ne le transmet pas
@@ -76,6 +94,18 @@
     try { ext = c.getExtensionId(); } catch (e) {}
     c.dispatchEvent({ type: type, scope: 'APPLICATION', appId: appId, extensionId: ext, data: data });
   }
+  /** Contenu d'un événement CEP (déjà décodé ou encore en texte selon les versions) */
+  function eventData(ev) {
+    try {
+      var data = typeof ev === 'string' ? JSON.parse(ev) : ev;
+      if (data && data.data !== undefined) data = data.data;
+      return typeof data === 'string' ? JSON.parse(data) : data;
+    } catch (e) {
+      return null;
+    }
+  }
+  var presets = read('cypher.console.presets', []);
+  var presetSource = '', pendingPreset = null, started = false;
   // la console n'a pas Node : le thème vient de la fenêtre cachée de Cypher (événement CEP), et le dernier reçu est
   // gardé pour s'afficher tout de suite aux couleurs du thème à l'ouverture suivante
   applyTheme(read('cypher.console.theme', null));
@@ -91,6 +121,23 @@
             write('cypher.console.theme', theme);
           }
         } catch (e) {}
+      });
+      cep.addEventListener('com.cypher.console.presets', function (ev) {
+        var data = eventData(ev);
+        // la fenêtre cachée et le panneau Cypher répondent tous les deux : la première réponse sert
+        if (!data || !Array.isArray(data.list) || (presetSource && presetSource !== data.from)) return;
+        presetSource = data.from;
+        var fresh = data.list.map(function (p) {
+          return { name: String(p.name), kind: 'preset', media: p.kind === 'audio' ? 'audio' : 'video', bin: String(p.bin || ''), key: String(p.key) };
+        });
+        if (JSON.stringify(fresh) === JSON.stringify(presets)) return;
+        presets = fresh;
+        write(KEYS.presets, presets);
+        if (typeof render === 'function' && started) render();
+      });
+      cep.addEventListener('com.cypher.console.presetResult', function (ev) {
+        var data = eventData(ev);
+        if (data && pendingPreset && data.id === pendingPreset.id) pendingPreset.done(String(data.result || ''));
       });
       sendCepEvent('com.cypher.console.ready', '');
     } catch (e) {}
@@ -162,21 +209,38 @@
   var results = [];
 
   var keyOf = function (e) {
-    return e.kind + ':' + e.name;
+    return e.kind + ':' + (e.kind === 'preset' ? e.key : e.name);
   };
   var fold = function (s) {
     return String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
   };
 
+  // nom sans accents ni majuscules : calculé une fois par effet, pas à chaque frappe
+  var folded = {};
+  var foldedName = function (name) {
+    return folded[name] || (folded[name] = fold(name));
+  };
+  /** Recherche préparée une fois par frappe : texte normalisé, mots, et un motif « début de mot » par mot */
+  function prepare(query) {
+    var s = fold(query).trim();
+    var words = s.split(/\s+/).filter(Boolean);
+    return {
+      s: s,
+      words: words,
+      starts: words.map(function (w) {
+        return new RegExp('(^|[^a-z0-9])' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+      })
+    };
+  }
   /** Pertinence (0 = écarté) : début du nom > début d'un mot > contenu > lettres dans l'ordre (« gsbl » -> gaussian blur) */
   function score(name, query) {
-    var n = fold(name), s = fold(query).trim();
+    var pq = typeof query === 'string' ? prepare(query) : query;
+    var n = foldedName(name), s = pq.s, words = pq.words;
     if (!s) return 1;
     if (n === s) return 1000;
     if (n.indexOf(s) === 0) return 800 - n.length;
-    var words = s.split(/\s+/).filter(Boolean);
-    var wordStart = words.every(function (w) {
-      return new RegExp('(^|[^a-z0-9])' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).test(n);
+    var wordStart = pq.starts.every(function (re) {
+      return re.test(n);
     });
     if (wordStart) return 600 - n.length;
     if (n.indexOf(s) >= 0) return 400 - n.length;
@@ -193,12 +257,13 @@
   var input = $('q'), list = $('list'), foot = $('foot'), count = $('count'), spinner = $('spin');
   var ICON_VIDEO = '<svg class="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18"/><path d="M7 2v20M17 2v20M2 12h20M2 7h5M2 17h5M17 17h5M17 7h5"/></svg>';
   var ICON_AUDIO = '<svg class="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6A1.4 1.4 0 0 1 5.4 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5z"/><path d="M16 9a5 5 0 0 1 0 6M19.4 18.4a9 9 0 0 0 0-12.7"/></svg>';
+  var ICON_PRESET = '<svg class="w-3.5 h-3.5 text-cream-300 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>';
   var esc = function (s) {
     return String(s).replace(/[&<>"]/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
     });
   };
-  var HELP = 'Entrée : appliquer · Maj+Entrée : sans fermer · Tab : vidéo/audio · Ctrl+D : favori · Échap : fermer';
+  var HELP = 'Entrée appliquer · Maj+Entrée garder ouvert · Tab filtrer · Ctrl+D favori';
 
   function setInfo(text, isError) {
     foot.textContent = text || HELP;
@@ -207,7 +272,7 @@
 
   function compute() {
     var query = input.value;
-    var pool = effects.filter(function (e) {
+    var pool = effects.concat(presets).filter(function (e) {
       return kindFilter === 'all' || e.kind === kindFilter;
     });
     if (!query.trim()) {
@@ -220,9 +285,10 @@
         .filter(Boolean);
       return;
     }
+    var prepared = prepare(query);
     results = pool
       .map(function (e) {
-        var sc = score(e.name, query);
+        var sc = score(e.name, prepared);
         if (sc > 0 && favorites.indexOf(keyOf(e)) >= 0) sc += 40;
         if (sc > 0 && recents.indexOf(keyOf(e)) >= 0) sc += 20;
         return { e: e, sc: sc };
@@ -241,7 +307,7 @@
 
   function render() {
     compute();
-    count.textContent = effects.length ? effects.length + ' effets' : '';
+    count.textContent = effects.length ? effects.length + ' effets' + (presets.length ? ' · ' + presets.length + ' presets' : '') : '';
     var ci = cursorIndex();
     var html = '';
     if (!results.length) {
@@ -257,8 +323,9 @@
         var fav = favorites.indexOf(keyOf(e)) >= 0, cur = i === ci;
         html +=
           '<div data-i="' + i + '" data-current="' + cur + '" class="row mx-1.5 px-2.5 py-1.5 rounded-lg flex items-center gap-2 cursor-pointer ' + (cur ? 'bg-white/[0.08]' : '') + '">' +
-          (e.kind === 'audio' ? ICON_AUDIO : ICON_VIDEO) +
-          '<span class="flex-1 min-w-0 truncate text-[13px] ' + (cur ? 'text-zinc-50' : 'text-zinc-200') + '">' + esc(e.name) + '</span>' +
+          (e.kind === 'preset' ? ICON_PRESET : e.kind === 'audio' ? ICON_AUDIO : ICON_VIDEO) +
+          '<span class="flex-1 min-w-0 truncate text-[13px] ' + (cur ? 'text-zinc-50' : 'text-zinc-200') + '">' + esc(e.name) +
+          (e.kind === 'preset' ? ' <span class="text-[10px] text-zinc-500">' + esc(e.bin || 'preset') + '</span>' : '') + '</span>' +
           '<button data-star="' + i + '" title="' + (fav ? 'Retirer des favoris (Ctrl+D)' : 'Ajouter aux favoris (Ctrl+D)') + '" class="flex-shrink-0 text-sm leading-none cursor-pointer ' +
           (fav ? 'text-cream-300' : cur ? 'text-zinc-500 hover:text-cream-300' : 'text-transparent') + '">★</button></div>';
       });
@@ -290,18 +357,42 @@
     if (!e || busy) return;
     busy = true;
     setInfo('Application de « ' + e.name + ' »…');
-    evalScript(applyScript(e)).then(function (r) {
+    (e.kind === 'preset' ? requestPreset(e) : evalScript(applyScript(e))).then(function (r) {
       busy = false;
       if (r.indexOf('OK|') !== 0) {
         setInfo(r.indexOf('ERR|') === 0 ? r.slice(4) : 'Effet non appliqué.', true);
         return;
       }
-      var n = parseInt(r.slice(3), 10) || 1;
+      var parts = r.split('|');
+      var n = parseInt(parts[1], 10) || 1;
       recents = [keyOf(e)].concat(recents.filter(function (k) { return k !== keyOf(e); })).slice(0, 12);
       write(KEYS.recents, recents);
-      setInfo('« ' + e.name + ' » appliqué à ' + n + ' clip' + (n > 1 ? 's' : '') + '.');
-      if (!keepOpen) setTimeout(closeWindow, 450);
+      // preset : effets absents de ce poste, ou réglages que Premiere n'a pas acceptés
+      var note = parts[3] ? ' Effet introuvable : ' + parts[3] + '.' : parseInt(parts[2], 10) > 0 ? ' Certains réglages n’ont pas pu être repris.' : '';
+      setInfo('« ' + e.name + ' » appliqué à ' + n + ' clip' + (n > 1 ? 's' : '') + '.' + note, !!note && !!parts[3]);
+      if (!keepOpen) setTimeout(closeWindow, note ? 1800 : 250);
       else render();
+    });
+  }
+
+  /** Demande à la fenêtre cachée de Cypher (qui a lu le fichier de presets) d'appliquer un preset */
+  function requestPreset(e) {
+    return new Promise(function (resolve) {
+      if (!presetSource) return resolve('ERR|Presets indisponibles : rouvrez la console dans un instant');
+      var id = String(Date.now()) + Math.random();
+      var timer = setTimeout(function () {
+        pendingPreset = null;
+        resolve('ERR|Premiere ne répond pas');
+      }, 20000);
+      pendingPreset = {
+        id: id,
+        done: function (r) {
+          clearTimeout(timer);
+          pendingPreset = null;
+          resolve(r);
+        }
+      };
+      sendCepEvent('com.cypher.console.applyPreset', JSON.stringify({ to: presetSource, id: id, key: e.key }));
     });
   }
 
@@ -322,7 +413,7 @@
     else if (k === 'Enter') apply(results[cursorIndex()], ev.shiftKey);
     else if (k === 'Escape') closeWindow();
     else if (k === 'Tab') {
-      kindFilter = kindFilter === 'all' ? 'video' : kindFilter === 'video' ? 'audio' : 'all';
+      kindFilter = kindFilter === 'all' ? 'video' : kindFilter === 'video' ? 'audio' : kindFilter === 'audio' && presets.length ? 'preset' : 'all';
       cursorKey = null;
       render();
     } else if ((ev.ctrlKey || ev.metaKey) && k.toLowerCase() === 'd') toggleFavorite(results[cursorIndex()]);
@@ -365,18 +456,28 @@
   };
   window.addEventListener('focus', focus);
 
+  started = true;
   render();
   focus();
 
-  // liste relue dans Premiere à chaque ouverture (plugins ajoutés) ; celle en mémoire s'affiche tout de suite
-  if (cep) {
+  // La liste en mémoire s'affiche tout de suite. Elle n'est relue dans Premiere (plugins ajoutés) que si elle date,
+  // et un instant après l'ouverture : la lecture occupe Premiere, elle ne doit gêner ni la frappe ni l'application
+  var listTries = 0;
+  function refreshEffects() {
+    if (busy) return setTimeout(refreshEffects, 400);
     spinner.style.display = '';
     evalScript(LIST_SCRIPT).then(function (r) {
       spinner.style.display = 'none';
       if (!r || r.indexOf('ERR|') === 0) {
-        if (!effects.length) setInfo('Liste des effets indisponible' + (r ? ' : ' + r.slice(4) : '') + '.', true);
+        if (effects.length) return;
+        // Premiere encore en train de démarrer ou occupé : nouvel essai tout seul, l'erreur ne s'affiche qu'ensuite
+        if (++listTries < 6) {
+          setInfo('Premiere est occupé : nouvelle lecture des effets dans un instant…');
+          setTimeout(refreshEffects, 3000);
+        } else setInfo('Liste des effets indisponible' + (r ? ' : ' + r.slice(4) : '') + '.', true);
         return;
       }
+      if (listTries) setInfo('');
       var seen = {};
       var fresh = r.split('\n').map(function (line) {
         var tab = line.indexOf('\t');
@@ -385,11 +486,18 @@
         return name && !seen[keyOf(e)] && (seen[keyOf(e)] = true) ? e : null;
       }).filter(Boolean);
       if (fresh.length) {
+        var changed = JSON.stringify(fresh) !== JSON.stringify(effects);
+        write(KEYS.listedAt, Date.now());
+        if (!changed) return;
         effects = fresh;
         write(KEYS.effects, effects);
         render();
       }
     });
+  }
+  if (cep) {
+    if (!effects.length) refreshEffects();
+    else if (Date.now() - read(KEYS.listedAt, 0) > LIST_MAX_AGE_MS) setTimeout(refreshEffects, 600);
   }
   window.__consoleReady = performance.now();
 })();

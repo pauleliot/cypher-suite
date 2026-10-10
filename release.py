@@ -272,7 +272,7 @@ function run(argv) {
   var task = null, win = null;
   try {
     // ---- fenêtre ----
-    var W = 480, H = 176;
+    var W = 480, H = 200;
     win = $.NSWindow.alloc.initWithContentRectStyleMaskBackingDefer($.NSMakeRect(0, 0, W, H), $.NSWindowStyleMaskTitled, $.NSBackingStoreBuffered, false);
     win.title = 'Installer ' + name + ' ' + version;
     win.releasedWhenClosed = false;
@@ -302,7 +302,7 @@ function run(argv) {
     view.addSubview(bar);
     bar.startAnimation($());
     var hint = $.NSTextField.wrappingLabelWithString('');
-    hint.frame = $.NSMakeRect(100, 16, W - 120, 32);
+    hint.frame = $.NSMakeRect(100, 20, W - 120, 48);
     hint.font = $.NSFont.systemFontOfSize(11);
     view.addSubview(hint);
     hint.textColor = $.NSColor.secondaryLabelColor;
@@ -359,42 +359,49 @@ function run(argv) {
     // ---- résultat : la fenêtre reste jusqu'à « Fermer » ----
     var ok = task.terminationStatus === 0;
     bar.stopAnimation($());
-    bar.indeterminate = false;
-    bar.maxValue = 1;
-    bar.doubleValue = ok ? 1 : 0;
+    bar.hidden = true;
     title.stringValue = ok ? name + ' est installé' : "L'installation n'a pas abouti";
     detail.stringValue = ok ? 'Tout est prêt.' : 'Relancez l\'installeur pour réessayer.';
     hint.stringValue = ok
       ? 'Ouvrez Premiere Pro, puis : Fenêtre > Extensions > ' + menu + '.'
       : 'Détails dans le journal : ' + logPath;
+    // boutons à bascule (type 1 = NSButtonTypePushOnPushOff, style 1 = arrondi) : un clic se lit dans leur état
     function button(titleText, x, isDefault) {
-      var b = $.NSButton.alloc.initWithFrame($.NSMakeRect(x, 12, 130, 32));
+      var b = $.NSButton.alloc.initWithFrame($.NSMakeRect(x, 16, 130, 32));
       b.title = titleText;
-      b.bezelStyle = $.NSBezelStyleRounded;
-      b.setButtonType($.NSButtonTypePushOnPushOff);
+      b.bezelStyle = 1;
+      b.setButtonType(1);
       if (isDefault) b.keyEquivalent = '\r';
       view.addSubview(b);
       return b;
     }
-    // le texte du résultat remonte pour laisser la place aux boutons
-    hint.frame = $.NSMakeRect(100, 50, W - 120, 32);
+    // le texte du résultat prend la place de la barre, bien au-dessus des boutons
+    hint.frame = $.NSMakeRect(100, 64, W - 120, 40);
     var close = button('Fermer', W - 150, true);
     var showLog = ok ? null : button('Voir le journal', W - 290, false);
+    out(ok ? 'DONE' : 'FAILED');
+    // « Fermer » quitte aussi directement (action Cocoa), et la fenêtre a maintenant sa pastille rouge
+    try {
+      close.target = app;
+      close.action = 'terminate:';
+    } catch (e) {}
+    try { win.styleMask = 1 | 2; } catch (e) {}
     app.activateIgnoringOtherApps(true);
     win.makeKeyAndOrderFront($());
+    var pressed = function (b) { return !!b && Number(b.state) > 0; };
     for (;;) {
       pump(0.2);
-      if (close.state === 1 || !win.isVisible) break;
-      if (showLog && showLog.state === 1) {
+      if (pressed(close) || !win.isVisible) break;
+      if (pressed(showLog)) {
         showLog.state = 0;
         sa.doShellScript('open -e "' + logPath.replace(/"/g, '\\"') + '"');
       }
     }
     win.orderOut($());
-    out(ok ? 'DONE' : 'FAILED');
   } catch (e) {
     try { if (win) win.orderOut($()); } catch (e2) {}
     if (!task) return;
+    if (!task.isRunning) return; // résultat déjà affiché et écrit
     task.waitUntilExit;
     var done = task.terminationStatus === 0;
     try {

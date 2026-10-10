@@ -1,6 +1,6 @@
 // Fichier généré depuis app.source.tsx (Babel : TypeScript + JSX). Ne pas modifier à la main.
 import React, { useState, useEffect, useRef } from 'react';
-import { Scissors, MessageSquare, FileAudio, FolderTree, Settings, Activity, Power, CheckCircle2, AlertCircle, ArrowRightLeft, Volume2, FolderSync, Play, Sparkles, X, Plus, Trash2, Film, FolderOpen, Pencil, Check, RotateCcw, FileSpreadsheet, Image as ImageIcon, Download, Copy, Clock, Tag, Send, Layers, ChevronRight, Maximize2, Minimize2, Sliders, Settings2, AlertTriangle, Info, ShieldCheck, ListChecks, Archive, Menu, Search } from 'lucide-react';
+import { Scissors, MessageSquare, FileAudio, FolderTree, Settings, Activity, Power, CheckCircle2, AlertCircle, ArrowRightLeft, Volume2, FolderSync, Play, Sparkles, X, Plus, Trash2, Film, FolderOpen, Pencil, Check, RotateCcw, FileSpreadsheet, Image as ImageIcon, Download, Copy, Clock, Tag, Send, Layers, ChevronRight, Maximize2, Minimize2, Sliders, Settings2, AlertTriangle, Info, ShieldCheck, ListChecks, Archive, Menu, Search, Palette } from 'lucide-react';
 
 // ==================== types/index.ts ====================
 
@@ -3949,6 +3949,31 @@ export const Header = ({
   visibleTabs
 }) => {
   const tabs = ALL_TABS.filter(id => visibleTabs.includes(id));
+  // Panneau étroit : si les onglets ne tiennent pas avec leurs noms, seuls l'onglet ouvert garde le sien
+  // (les autres restent visibles par leur icône, nom en infobulle) — aucun onglet n'est coupé ou caché
+  const navRef = useRef(null);
+  const rowRef = useRef(null);
+  const fullWidth = useRef(0);
+  const [compactTabs, setCompactTabs] = useState(false);
+  const tabsKey = tabs.join(',');
+  React.useLayoutEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    // largeur avec tous les noms : mesurée onglets dépliés, gardée tant que la liste d'onglets ne change pas
+    fullWidth.current = 0;
+    setCompactTabs(false);
+    const measure = () => {
+      if (!fullWidth.current && rowRef.current) fullWidth.current = rowRef.current.scrollWidth;
+      setCompactTabs(fullWidth.current > nav.clientWidth + 1);
+    };
+    const raf = requestAnimationFrame(measure);
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+    observer?.observe(nav);
+    return () => {
+      cancelAnimationFrame(raf);
+      observer?.disconnect();
+    };
+  }, [tabsKey]);
   return /*#__PURE__*/_jsx("header", {
     className: "bg-ink/95 backdrop-blur border-b border-white/10 sticky top-0 z-40 text-zinc-100",
     children: /*#__PURE__*/_jsxs("div", {
@@ -3993,13 +4018,17 @@ export const Header = ({
       /*#__PURE__*/
       // w-max + mx-auto : centré quand tout tient, défilement depuis le premier onglet sinon
       _jsx("nav", {
+        ref: navRef,
         className: "mt-3 overflow-x-auto scrollbar-none",
         children: /*#__PURE__*/_jsx("div", {
+          ref: rowRef,
           className: "flex gap-0.5 w-max mx-auto",
           children: tabs.map(id => /*#__PURE__*/_jsxs("button", {
             onClick: () => onTabChange(id),
+            title: TAB_META[id].label,
+            "aria-label": TAB_META[id].label,
             className: `flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-full transition whitespace-nowrap cursor-pointer ${activeTab === id ? 'bg-cream-300 text-ink shadow' : 'text-zinc-300 hover:text-white hover:bg-white/5'}`,
-            children: [TAB_META[id].icon, /*#__PURE__*/_jsx("span", {
+            children: [TAB_META[id].icon, (!compactTabs || activeTab === id) && /*#__PURE__*/_jsx("span", {
               children: TAB_META[id].label
             })]
           }, id))
@@ -4030,6 +4059,9 @@ export const AutoPowerToggle = ({
   }), /*#__PURE__*/_jsx("span", {
     className: `px-3 py-0.5 rounded-full text-[10px] font-bold tracking-[0.18em] ${active ? 'bg-emerald-300 text-ink' : 'bg-white/10 text-zinc-300'}`,
     children: active ? 'AUTO · ON' : 'AUTO · OFF'
+  }), /*#__PURE__*/_jsx("p", {
+    className: "text-[11px] leading-snug text-center text-zinc-400 max-w-[260px]",
+    children: active ? `Activé : ${title}, sans rien demander.` : `Mode automatique : ${title}. Appuyez pour l'activer.`
   })]
 });
 export const StatTile = ({
@@ -4708,7 +4740,7 @@ export const VideoTranscoder = () => {
       className: "rounded-2xl border border-white/10 bg-zinc-900/50 p-4 space-y-3",
       children: [!nodeOk ? /*#__PURE__*/_jsx(StatusMessage, {
         isError: true,
-        message: "Node.js n'est pas encore actif dans ce panneau : red\xE9marrez Premiere Pro pour appliquer la mise \xE0 jour de l'extension."
+        message: "Red\xE9marrez Premiere Pro pour terminer l'installation de Cypher : cet outil sera disponible ensuite."
       }) : !tools ? /*#__PURE__*/_jsxs("div", {
         className: "space-y-2",
         children: [/*#__PURE__*/_jsx(StatusMessage, {
@@ -5266,7 +5298,7 @@ export const WebDownloader = () => {
       className: "rounded-2xl border border-white/10 bg-zinc-900/50 p-4 space-y-3",
       children: [!nodeOk ? /*#__PURE__*/_jsx(StatusMessage, {
         isError: true,
-        message: "Node.js n'est pas actif dans ce panneau : red\xE9marrez Premiere Pro."
+        message: "Red\xE9marrez Premiere Pro pour terminer l'installation de Cypher : cet outil sera disponible ensuite."
       }) : !ytdlp ? /*#__PURE__*/_jsxs("div", {
         className: "space-y-2",
         children: [/*#__PURE__*/_jsx(StatusMessage, {
@@ -8681,7 +8713,7 @@ const ProfilesSection = ({
 
 // ==================== components/SettingsModal.tsx ====================
 
-// 'appearance' = onglet « Configuration » : profils puis apparence
+// 'appearance' = thème, police, nom affiché, onglets ; 'profiles' = onglet « Configuration » (profils)
 
 /** Pastille de couleur + saisie hexadécimale synchronisées */
 const HexColorField = ({
@@ -9138,6 +9170,14 @@ export const SettingsModal = ({
         }), /*#__PURE__*/_jsxs("button", {
           onClick: () => setActiveTab('appearance'),
           className: `py-2.5 flex flex-shrink-0 items-center gap-1 border-b-2 transition cursor-pointer ${activeTab === 'appearance' ? 'border-emerald-500 text-emerald-300' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`,
+          children: [/*#__PURE__*/_jsx(Palette, {
+            className: "w-3.5 h-3.5"
+          }), /*#__PURE__*/_jsx("span", {
+            children: "Apparence"
+          })]
+        }), /*#__PURE__*/_jsxs("button", {
+          onClick: () => setActiveTab('profiles'),
+          className: `py-2.5 flex flex-shrink-0 items-center gap-1 border-b-2 transition cursor-pointer ${activeTab === 'profiles' ? 'border-emerald-500 text-emerald-300' : 'border-transparent text-zinc-400 hover:text-zinc-200'}`,
           children: [/*#__PURE__*/_jsx(Sliders, {
             className: "w-3.5 h-3.5"
           }), /*#__PURE__*/_jsx("span", {
@@ -9752,21 +9792,19 @@ export const SettingsModal = ({
         }), activeTab === 'norms' && /*#__PURE__*/_jsx(NormsSettings, {
           presets: deliveryPresets,
           onChange: onUpdateDeliveryPresets
+        }), activeTab === 'profiles' && /*#__PURE__*/_jsx(ProfilesSection, {
+          current: profileSnapshot,
+          onApply: applyProfile
         }), activeTab === 'appearance' && /*#__PURE__*/_jsxs("div", {
           className: "space-y-5",
-          children: [/*#__PURE__*/_jsx(ProfilesSection, {
-            current: profileSnapshot,
-            onApply: applyProfile
-          }), /*#__PURE__*/_jsx("div", {
-            className: "border-t border-zinc-800"
-          }), /*#__PURE__*/_jsxs("div", {
+          children: [/*#__PURE__*/_jsxs("div", {
             className: "space-y-2",
             children: [/*#__PURE__*/_jsx("h3", {
               className: "font-bold text-white text-xs",
               children: "Th\xE8me de couleurs"
             }), /*#__PURE__*/_jsx("p", {
               className: "text-[11px] text-zinc-400 leading-snug",
-              children: "Partag\xE9 avec Ongaku et Sori : th\xE8me, nom affich\xE9 et presets se mettent \xE0 jour dans les trois panneaux."
+              children: "Partag\xE9 avec Ongaku, Sori et Kiru : th\xE8me, police, nom affich\xE9 et presets se mettent \xE0 jour dans tous les panneaux."
             }), /*#__PURE__*/_jsx("div", {
               className: "flex flex-wrap gap-1.5",
               children: [...BUILTIN_THEME_PRESETS, ...appearance.userPresets].map(preset => /*#__PURE__*/_jsxs("span", {
@@ -9884,6 +9922,17 @@ export const SettingsModal = ({
                   }), "Appliquer"]
                 })
               })]
+            })]
+          }), /*#__PURE__*/_jsxs("div", {
+            className: "space-y-2",
+            children: [/*#__PURE__*/_jsx("h3", {
+              className: "font-bold text-white text-xs",
+              children: "Police"
+            }), /*#__PURE__*/_jsx("div", {
+              className: "rounded-lg bg-zinc-950 border border-zinc-800 p-2.5",
+              ref: el => {
+                if (el && !el.firstChild) window.SuiteTheme?.mountFontPicker?.(el);
+              }
             })]
           }), /*#__PURE__*/_jsxs("div", {
             className: "space-y-2",
@@ -10015,24 +10064,45 @@ const ResizeGrip = ({
   compact,
   tall
 }) => {
-  const drag = useRef(null);
   const clamp = h => Math.round(Math.max(min, Math.min(max, h)));
+  const latest = useRef({
+    onChange,
+    clamp
+  });
+  latest.current = {
+    onChange,
+    clamp
+  };
+  // Glisser : la souris est suivie sur toute la fenêtre (pas seulement sur la poignée, qui bouge avec la zone),
+  // jusqu'au relâchement du bouton — y compris s'il est relâché hors du panneau
+  const startDrag = e => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const from = {
+      y: e.clientY,
+      h: height
+    };
+    const move = ev => {
+      if (ev.buttons === 0) return stop();
+      ev.preventDefault();
+      latest.current.onChange(latest.current.clamp(from.h + ev.clientY - from.y));
+    };
+    const stop = () => {
+      window.removeEventListener('mousemove', move, true);
+      window.removeEventListener('mouseup', stop, true);
+      window.removeEventListener('blur', stop);
+      document.body.style.cursor = '';
+    };
+    window.addEventListener('mousemove', move, true);
+    window.addEventListener('mouseup', stop, true);
+    window.addEventListener('blur', stop);
+    document.body.style.cursor = 'ns-resize';
+  };
   return /*#__PURE__*/_jsx("div", {
     role: "separator",
     "aria-orientation": "horizontal",
-    title: "Glisser pour agrandir ou r\xE9duire \xB7 double-clic : grande / petite taille",
-    onPointerDown: e => {
-      drag.current = {
-        y: e.clientY,
-        h: height
-      };
-      try {
-        e.currentTarget.setPointerCapture(e.pointerId);
-      } catch {}
-    },
-    onPointerMove: e => drag.current && onChange(clamp(drag.current.h + e.clientY - drag.current.y)),
-    onPointerUp: () => drag.current = null,
-    onPointerCancel: () => drag.current = null,
+    title: "Maintenir et glisser pour agrandir ou r\xE9duire \xB7 double-clic : grande / petite taille",
+    onMouseDown: startDrag,
     onDoubleClick: () => onChange(height < (compact + tall) / 2 ? tall : compact),
     className: "group flex justify-center py-1 cursor-ns-resize select-none touch-none",
     children: /*#__PURE__*/_jsx("span", {
@@ -10292,7 +10362,8 @@ export const ReviewMarkersHub = ({
     const run = async () => {
       const w = writesRef.current;
       const base = latestRef.current;
-      if (busy || base.markers.length === 0 || w.active > 0) return;
+      // panneau masqué (autre onglet du groupe, fenêtre réduite) : Premiere n'est pas interrogé pour rien
+      if (busy || document.hidden || base.markers.length === 0 || w.active > 0) return;
       const withClips = needsClips(base.markers, base.placeOn);
       tick++;
       if (withClips && tick % 3 !== 0) return;
@@ -10776,7 +10847,7 @@ export const ReviewMarkersHub = ({
     if (on) {
       if (!isNodeAvailable()) return setSyncInfo({
         isError: true,
-        message: 'Node.js inactif : redémarrez Premiere Pro.'
+        message: "Redémarrez Premiere Pro pour terminer l'installation de Cypher."
       });
       if (!sync.folder) return setSyncInfo({
         isError: true,
@@ -11550,8 +11621,14 @@ export default function App() {
     if (!isRunningInPremiere()) return;
     const refresh = () => evalExtendScript('JSON.stringify({ success: true, name: app.project ? app.project.name : "" })').then(res => setCurrentProjectName(String(res?.name || ''))).catch(() => {});
     refresh();
-    const timer = setInterval(refresh, 5000);
-    return () => clearInterval(timer);
+    // panneau masqué : pas de question à Premiere ; relu dès qu'il réapparaît
+    const timer = setInterval(() => !document.hidden && refresh(), 5000);
+    const onVisible = () => !document.hidden && refresh();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, []);
   return /*#__PURE__*/_jsxs("div", {
     className: "w-full min-h-screen bg-ink text-zinc-100 flex flex-col font-sans antialiased selection:bg-emerald-600 selection:text-white overflow-x-hidden",
@@ -11640,7 +11717,7 @@ export default function App() {
 // ==================== components/AboutCypher.tsx ====================
 
 /** Version affichée dans « À propos » : à garder alignée sur CSXS/manifest.xml */
-const APP_VERSION = '2.10.1';
+const APP_VERSION = '2.11.0';
 /** Version de Cypher Checker (application autonome) : à garder alignée sur checker/package.json */
 const CHECKER_VERSION = '1.2.0';
 

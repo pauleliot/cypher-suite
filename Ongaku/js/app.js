@@ -1750,6 +1750,7 @@
           (setUi.importError ? '<div class="err">' + esc(setUi.importError) + '</div>' : '') +
           '<div class="srow end"><button class="sbtn sm" id="applyImport">' + icon('check') + 'Appliquer</button></div>' : '') +
         '</div>' +
+        '<div class="sgroup"><h3>Police</h3><div class="sbox" id="suiteFontBox"></div></div>' +
         '<div class="sgroup"><h3>Nom affiché à côté d\'Ongaku</h3><div class="sbox">' +
         '<input class="text-input" id="brandIn" placeholder="Laisser vide pour ne rien afficher" value="' + esc(a.brandLabel) + '"/>' +
         hexField('brandColor', 'Couleur du nom', a.brandColor) + '</div></div>' +
@@ -1865,6 +1866,7 @@
         toast('Preset « ' + p.name + ' » importé et appliqué.');
       } catch (e) { setUi.importError = e.message; renderSettings(); }
     };
+    if (window.SuiteTheme && window.SuiteTheme.mountFontPicker) window.SuiteTheme.mountFontPicker($('#suiteFontBox'));
     $('#brandIn').oninput = function () { a.brandLabel = this.value.slice(0, 32); commit(); };
     Array.prototype.forEach.call(s.querySelectorAll('[data-vtab]'), function (cb) {
       cb.onchange = function () {
