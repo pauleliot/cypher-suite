@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ExtensionManifest Version="10.0" ExtensionBundleId="com.cypher.studio.panel" ExtensionBundleVersion="2.11.0" ExtensionBundleName="Cypher" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<ExtensionManifest Version="10.0" ExtensionBundleId="com.cypher.studio.panel" ExtensionBundleVersion="2.11.1" ExtensionBundleName="Cypher" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <ExtensionList>
-    <Extension Id="com.cypher.studio.panel" Version="2.11.0" />
-    <Extension Id="com.cypher.studio.console" Version="2.11.0" />
-    <Extension Id="com.cypher.studio.hotkey" Version="2.11.0" />
+    <Extension Id="com.cypher.studio.panel" Version="2.11.1" />
+    <Extension Id="com.cypher.studio.console" Version="2.11.1" />
+    <Extension Id="com.cypher.studio.hotkey" Version="2.11.1" />
   </ExtensionList>
   <ExecutionEnvironment>
     <HostList>

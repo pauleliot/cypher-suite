@@ -234,7 +234,8 @@
         family = "'" + f.name + "'";
       }
       // Urbanist : la feuille du panneau reprend la main ; sinon la police choisie passe devant
-      ensureStyle('suite-font', 'style').textContent = family ? 'html body, html body #root { font-family: ' + family + ', Urbanist, ' + FALLBACK + ' !important; }' : '';
+      // (.font-sans : dans Cypher, le conteneur de l'application fixe lui-même la police)
+      ensureStyle('suite-font', 'style').textContent = family ? 'html body, html body #root, html body .font-sans { font-family: ' + family + ', Urbanist, ' + FALLBACK + ' !important; }' : '';
     }
     for (var i = pickers.length - 1; i >= 0; i--) {
       if (document.body && document.body.contains(pickers[i])) renderPicker(pickers[i]);

@@ -1,3 +1,6 @@
+2.11.1
+- Apparence : la police choisie s'applique maintenant à tout le panneau Cypher (elle restait en Urbanist).
+
 2.11.0
 - Cypher Console : vos presets d'effets (Effets > Préconfigurations) sont proposés et appliqués aux clips sélectionnés, avec leurs réglages et images clés. Bouton « Presets » (ou Tab).
 - Cypher Console : fenêtre plus petite, liste des effets relue moins souvent, fermeture plus rapide après application.
